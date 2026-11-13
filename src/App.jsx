@@ -21,6 +21,7 @@ import {
   SellerRegistration,
 } from "./pages/SellerPages.jsx";
 import ServiceEditor from "./pages/ServiceEditor.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -35,11 +36,15 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
+  const isAdminRoute = pathname.startsWith("/admin");
+
   return (
     <>
       <ScrollToTop />
-      <Header />
+      {!isAdminRoute && <Header />}
       <Routes>
+        <Route path="/admin/*" element={<AdminDashboard />} />
         <Route path="/" element={<Home />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/templates/:id" element={<TemplateDetail />} />
@@ -62,7 +67,7 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <Footer />
+      {!isAdminRoute && <Footer />}
     </>
   );
 }

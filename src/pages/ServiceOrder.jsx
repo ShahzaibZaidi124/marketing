@@ -169,9 +169,9 @@ export default function ServiceOrder() {
         <ArrowLeft size={15} /> Back to service
       </Link>
       <header className="service-order-heading">
-        <span className="market-eyebrow">PROJECT CHECKOUT</span>
+        <span className="market-eyebrow">ORDER REQUIREMENTS PREVIEW</span>
         <h1>Tell Us About Your Project</h1>
-        <p>Share your requirements so the developer can build the website you need.</p>
+        <p>Review sample project requirements. Nothing is sent to the seller or saved.</p>
       </header>
 
       <div className="service-order-layout">
@@ -294,7 +294,11 @@ export default function ServiceOrder() {
           </section>
 
           <div className="service-order-submit-area">
-            <button type="submit" className="market-button market-button-primary service-order-submit">Submit Order <ArrowRight size={15} /></button>
+            <div className="service-order-demo-notice" role="note">
+              <strong>Payments are not enabled in this demo.</strong>
+              <span>No card details are requested, no payment is processed, and no order is submitted.</span>
+            </div>
+            <button type="submit" className="market-button market-button-primary service-order-submit">Preview order requirements <ArrowRight size={15} /></button>
             <p>This marketplace is in demo mode. Your details and any attachment will not be sent or saved.</p>
             {demoNotice && (
               <div className="service-order-demo-notice" role="status">

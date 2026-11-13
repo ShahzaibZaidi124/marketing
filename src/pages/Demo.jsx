@@ -9,7 +9,7 @@ export default function Demo() {
 
   return (
     <main className="demo-page section">
-      <div className="demo-toolbar"><Link to={`/templates/${template.id}`} className="back-link"><ArrowLeft size={14} /> Back to {template.name}</Link><span className="demo-badge"><span /> LIVE PREVIEW</span><Link to={`/order/${template.id}`} className="button button-small button-light">Make it yours <ArrowUpRight size={14} /></Link></div>
+      <div className="demo-toolbar"><Link to={`/templates/${template.id}`} className="back-link"><ArrowLeft size={14} /> Back to {template.name}</Link><span className="demo-badge"><span /> TEMPLATE PREVIEW</span><Link to={`/order/${template.id}`} className="button button-small button-light">Make it yours <ArrowUpRight size={14} /></Link></div>
       <div className={`demo-browser template-art-${template.style}`}>
         <div className="browser-chrome"><span className="browser-dots"><i /><i /><i /></span><span className="browser-address">{template.name.toLowerCase().replaceAll(" ", "")}.techstudio.pk</span><ExternalLink size={13} /></div>
         <div className="demo-content">

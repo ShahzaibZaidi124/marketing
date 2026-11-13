@@ -71,6 +71,7 @@ export function MarketplaceProvider({ children }) {
   const value = {
     allServices,
     publishedServices,
+    sellerServices,
     getOwnedService,
     getOwnedServices,
     getService,

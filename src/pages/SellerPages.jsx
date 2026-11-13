@@ -10,8 +10,6 @@ import {
   CircleDollarSign,
   Clock3,
   Code2,
-  Eye,
-  EyeOff,
   FileImage,
   Globe2,
   LayoutDashboard,
@@ -129,8 +127,6 @@ export function SellerRegistration() {
   const navigate = useNavigate();
   const existingDraft = location.state?.sellerDraft;
   const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(existingDraft?.avatar || "");
 
   const clearError = (event) => {
@@ -160,8 +156,6 @@ export function SellerRegistration() {
     event.preventDefault();
     const form = event.currentTarget;
     const values = form.elements;
-    const password = values.namedItem("password").value;
-    const confirmPassword = values.namedItem("confirmPassword").value;
     const nextErrors = {};
     const fullName = values.namedItem("fullName").value.trim();
     const username = values.namedItem("username").value.trim();
@@ -174,10 +168,6 @@ export function SellerRegistration() {
     if (fullName.length < 2) nextErrors.fullName = "Enter your full name.";
     if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) nextErrors.username = "Use 3–20 letters, numbers or underscores.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = "Enter a valid email address.";
-    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
-      nextErrors.password = "Use at least 8 characters, including an uppercase letter, a lowercase letter and a number.";
-    }
-    if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match.";
     if (about.length < 20) nextErrors.about = "Tell customers a little more about yourself (at least 20 characters).";
     if (skills.length === 0) nextErrors.skills = "Add at least one skill, separated by commas.";
     if (!experience) nextErrors.experience = "Select your experience level.";
@@ -185,8 +175,6 @@ export function SellerRegistration() {
     if (portfolioUrl && !isHttpUrl(portfolioUrl)) nextErrors.portfolioUrl = "Enter a valid URL starting with http:// or https://.";
     if (!values.namedItem("terms").checked) nextErrors.terms = "You must agree to the Terms and Conditions to continue.";
 
-    values.namedItem("password").value = "";
-    values.namedItem("confirmPassword").value = "";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       const firstInvalidField = Object.keys(nextErrors)[0];
@@ -217,13 +205,13 @@ export function SellerRegistration() {
         <section className="seller-form-intro">
           <SellerPageHeading
             eyebrow="YOUR SELLER PROFILE STARTS HERE"
-            title="Create your seller account"
+            title="Create a seller profile preview"
             description="A few details to get your TechStudio seller profile ready."
           />
           <div className="seller-form-aside-card">
             <span className="seller-form-aside-icon"><ShieldAlert size={20} /></span>
             <h2>Demo mode</h2>
-            <p>No authentication service is connected. Your account will not be created or saved. Do not use a real or reused password.</p>
+            <p>No authentication service is connected, so this preview does not request or store a password or create an account.</p>
             <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Create a profile preview</span>
             <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Set up your seller page</span>
             <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Explore the demo dashboard</span>
@@ -251,23 +239,6 @@ export function SellerRegistration() {
               <label htmlFor="sellerEmail">Email address <span>*</span></label>
               <input id="sellerEmail" name="email" type="email" autoComplete="email" defaultValue={existingDraft?.email || ""} onChange={clearError} placeholder="you@example.com" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "sellerEmail-error" : undefined} />
               <ErrorMessage id="sellerEmail-error">{errors.email}</ErrorMessage>
-            </div>
-            <div className="seller-field">
-              <label htmlFor="sellerPassword">Password <span>*</span></label>
-              <div className="seller-password-control">
-                <input id="sellerPassword" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" onChange={clearError} placeholder="At least 8 characters" aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "sellerPassword-error" : "sellerPassword-help"} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-              </div>
-              <span className="seller-field-hint" id="sellerPassword-help">Uppercase, lowercase and a number. Never use a real password here.</span>
-              <ErrorMessage id="sellerPassword-error">{errors.password}</ErrorMessage>
-            </div>
-            <div className="seller-field">
-              <label htmlFor="sellerConfirmPassword">Confirm password <span>*</span></label>
-              <div className="seller-password-control">
-                <input id="sellerConfirmPassword" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" onChange={clearError} placeholder="Re-enter your password" aria-invalid={Boolean(errors.confirmPassword)} aria-describedby={errors.confirmPassword ? "sellerConfirmPassword-error" : undefined} />
-                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Hide password confirmation" : "Show password confirmation"} aria-pressed={showConfirmPassword}>{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-              </div>
-              <ErrorMessage id="sellerConfirmPassword-error">{errors.confirmPassword}</ErrorMessage>
             </div>
             <div className="seller-field seller-field-full">
               <label htmlFor="sellerAvatar">Profile picture <span className="seller-optional">Optional · JPG, PNG or WebP up to 5 MB</span></label>
@@ -312,9 +283,9 @@ export function SellerRegistration() {
               <ErrorMessage id="sellerTerms-error">{errors.terms}</ErrorMessage>
             </div>
           </div>
-          <button className="market-button market-button-primary seller-submit-button" type="submit">Create Seller Account <ArrowRight size={15} /></button>
+          <button className="market-button market-button-primary seller-submit-button" type="submit">Continue to profile preview <ArrowRight size={15} /></button>
           <p className="seller-form-footer">Already have an account? <Link to="/seller/login">Log in</Link></p>
-          <p className="seller-no-password-note"><ShieldAlert size={13} /> Password fields are cleared when you continue and are never saved in this demo.</p>
+          <p className="seller-no-password-note"><ShieldAlert size={13} /> This preview does not collect passwords or create accounts.</p>
         </form>
       </div>
     </main>

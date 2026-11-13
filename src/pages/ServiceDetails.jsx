@@ -246,7 +246,7 @@ export default function ServiceDetails() {
         </div>
         {selectedPackage && <div className="selected-package-summary">
           <span>Selected: <strong>{selectedPackage.name}</strong> · PKR {new Intl.NumberFormat("en-PK").format(selectedPackage.price)} · {selectedPackage.deliveryDays} days</span>
-          <Link className="market-button market-button-primary" to={`/services/${service.id}/order?package=${selectedPackage.id}`}>Order Now <ArrowRight size={15} /></Link>
+          <Link className="market-button market-button-primary" to={`/services/${service.id}/order?package=${selectedPackage.id}`}>Preview requirements <ArrowRight size={15} /></Link>
         </div>}
       </section>
 

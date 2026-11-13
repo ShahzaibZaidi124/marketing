@@ -41,7 +41,7 @@ export default function TemplateCard({ template }) {
       </div>
       <p className="template-description">{template.description}</p>
       <div className="template-card-bottom">
-        <span className="rating"><Star size={13} fill="currentColor" /> {template.rating} <span>({template.reviews})</span></span>
+        <span className="rating" aria-label={`Sample rating ${template.rating} from ${template.reviews} sample reviews`}><Star size={13} fill="currentColor" /> {template.rating} <span>({template.reviews} sample)</span></span>
         <Link className="card-link" to={`/templates/${template.id}`}>Take a closer look <ArrowUpRight size={13} /></Link>
       </div>
     </article>

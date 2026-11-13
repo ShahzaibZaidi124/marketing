@@ -9,7 +9,7 @@ export default function Templates() {
         <div className="page-hero-content">
           <span className="eyebrow"><Sparkles size={13} /> A considered collection</span>
           <h1>Less blank canvas.<br /><span className="gradient-text">More brilliant ideas.</span></h1>
-          <p>Beautifully made website templates for your next big thing.<br className="desktop-break" /> All that’s missing is you.</p>
+          <p>Beautifully made website templates for your next big thing.<br className="desktop-break" /> Sample prices only; purchases and payments aren’t enabled in this demo.</p>
           <a className="text-link" href="#all-templates">Find your starting point <ArrowDown size={14} /></a>
         </div>
         <div className="page-hero-bottom"><span>GOOD DESIGN STARTS RIGHT HERE</span><span>01 / 06 — THE COLLECTION</span></div>

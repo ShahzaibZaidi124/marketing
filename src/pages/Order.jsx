@@ -32,8 +32,8 @@ export default function Order() {
       <main className="order-page">
         <div className="order-success">
           <span className="success-icon"><CheckCircle2 size={26} /></span><span className="eyebrow">A lovely place to begin</span>
-          <h1>Thanks, {form.name.split(" ")[0]}.</h1>
-          <p>Your enquiry for <strong>{template.name}</strong> is in. We’ll be in touch at <strong>{form.email}</strong> with the next steps.</p>
+          <h1>Enquiry preview ready.</h1>
+          <p>This demo does not send or save enquiries, contact you, or process payments. No order has been placed.</p>
           <Link className="button button-primary" to="/templates">Back to the collection <ArrowRight size={15} /></Link>
         </div>
       </main>
@@ -47,7 +47,11 @@ export default function Order() {
         <div className="order-form-side">
           <span className="eyebrow"><Sparkles size={13} /> ONE GOOD IDEA, COMING UP</span>
           <h1>Let’s make it<br /><span className="gradient-text">yours.</span></h1>
-          <p>Leave us a few details and we’ll be in touch to help get your new template into your hands.</p>
+          <p>Preview an enquiry about this template. This demo has no enquiry or payment service.</p>
+          <div className="service-order-demo-notice" role="note">
+            <strong>Demo only · no payment is collected.</strong>
+            <span>Do not enter payment details. Form details stay in this page and are not sent or saved.</span>
+          </div>
           <form className="order-form" onSubmit={submit} noValidate>
             <label htmlFor="order-name">Your name <span>*</span></label>
             <input id="order-name" name="name" autoComplete="name" placeholder="How should we say hello?" value={form.name} onChange={update} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "name-error" : undefined} />
@@ -59,15 +63,15 @@ export default function Order() {
             <input id="order-business" name="business" placeholder="Tell us a little about it" value={form.business} onChange={update} />
             <label htmlFor="order-notes">Anything else we should know? <span className="optional">(optional)</span></label>
             <textarea id="order-notes" name="notes" rows="3" placeholder="A thought, a question, a big idea..." value={form.notes} onChange={update} />
-            <button type="submit" className="button button-primary order-submit">Send your enquiry <ArrowRight size={15} /></button>
-            <span className="privacy-note"><LockKeyhole size={12} /> Just between us. Your details stay private.</span>
+            <button type="submit" className="button button-primary order-submit">Preview enquiry <ArrowRight size={15} /></button>
+            <span className="privacy-note"><LockKeyhole size={12} /> Not sent or saved · Don’t include sensitive details.</span>
           </form>
         </div>
         <aside className="order-summary">
           <span className="eyebrow">A good starting point</span>
           <div className={`order-summary-art template-art-${template.style}`}><span className="summary-mark">{template.initials}</span><span className="summary-art-name">{template.name}</span><span className="summary-art-caption">{template.category.toUpperCase()} · MADE WITH INTENTION</span></div>
           <div className="summary-title"><span>{template.name}</span><span>{formatPrice(template.price)}</span></div>
-          <p>One-time payment <span>·</span> Yours to make your own</p>
+          <p>Sample price <span>·</span> No payment collected</p>
           <div className="summary-includes">{template.features.slice(0, 3).map((feature) => <span key={feature}><CheckCircle2 size={13} /> {feature}</span>)}</div>
           <div className="summary-foot"><Sparkles size={13} /> A thoughtful start to something good.</div>
         </aside>

@@ -1,8 +1,11 @@
-import { Clock3 } from "lucide-react";
+import { Bookmark, BookmarkCheck, Clock3 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 export default function MarketplaceServiceCard({ service }) {
+  const { savedServiceIds, toggleSavedService } = useMarketplace();
   const isSellerService = Boolean(service.ownerUsername);
+  const isSaved = savedServiceIds.includes(service.id);
 
   return (
     <article className="browse-service-card">
@@ -22,7 +25,18 @@ export default function MarketplaceServiceCard({ service }) {
           <span><Clock3 size={14} /> Delivery in {service.deliveryDays} days</span>
           <span>Starting at <strong>PKR {new Intl.NumberFormat("en-PK").format(service.price)}</strong></span>
         </div>
-        <Link className="market-button market-button-primary browse-view-button" to={`/services/${service.id}`}>View Service</Link>
+        <div className="browse-service-actions">
+          <Link className="market-button market-button-primary browse-view-button" to={`/services/${service.id}`}>View Service</Link>
+          <button
+            className="market-button market-button-outline browse-save-button"
+            type="button"
+            aria-pressed={isSaved}
+            onClick={() => toggleSavedService(service.id)}
+          >
+            {isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+            {isSaved ? "Saved" : "Save"}
+          </button>
+        </div>
       </div>
     </article>
   );

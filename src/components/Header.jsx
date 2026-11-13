@@ -6,6 +6,7 @@ const links = [
   { label: "Home", to: "/" },
   { label: "Explore Services", to: "/services" },
   { label: "Messages", to: "/messages?role=customer" },
+  { label: "Dashboard", to: "/customer/dashboard" },
   { label: "Categories", to: "/#categories" },
   { label: "Become a Seller", to: "/seller" },
 ];

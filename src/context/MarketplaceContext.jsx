@@ -1,10 +1,19 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { serviceListings } from "../data/services.js";
 
 const MarketplaceContext = createContext(null);
 
 export function MarketplaceProvider({ children }) {
   const [sellerServices, setSellerServices] = useState([]);
+  const [savedServiceIds, setSavedServiceIds] = useState([]);
+  const [recentlyViewedServiceIds, setRecentlyViewedServiceIds] = useState([]);
+  const [customerProfile, setCustomerProfile] = useState({
+    displayName: "Customer",
+    email: "",
+    phone: "",
+    description: "",
+    avatar: "",
+  });
   const publishedServices = useMemo(
     () => sellerServices.filter((service) => service.status === "published"),
     [sellerServices],
@@ -19,6 +28,22 @@ export function MarketplaceProvider({ children }) {
     (service) => service.id === id && service.ownerUsername === username,
   );
   const getService = (id) => allServices.find((service) => service.id === id);
+  const toggleSavedService = useCallback((id) => {
+    if (!id) return;
+    setSavedServiceIds((current) => current.includes(id)
+      ? current.filter((serviceId) => serviceId !== id)
+      : [...current, id]);
+  }, []);
+  const removeSavedService = useCallback((id) => {
+    setSavedServiceIds((current) => current.filter((serviceId) => serviceId !== id));
+  }, []);
+  const recordRecentlyViewed = useCallback((id) => {
+    if (!id) return;
+    setRecentlyViewedServiceIds((current) => [id, ...current.filter((serviceId) => serviceId !== id)].slice(0, 6));
+  }, []);
+  const updateCustomerProfile = useCallback((profile) => {
+    setCustomerProfile((current) => ({ ...current, ...profile }));
+  }, []);
 
   const saveSellerService = (service, username) => {
     if (!service.id || !username || service.ownerUsername !== username) return false;
@@ -49,6 +74,13 @@ export function MarketplaceProvider({ children }) {
     getOwnedService,
     getOwnedServices,
     getService,
+    savedServiceIds,
+    toggleSavedService,
+    removeSavedService,
+    recentlyViewedServiceIds,
+    recordRecentlyViewed,
+    customerProfile,
+    updateCustomerProfile,
     saveSellerService,
     deleteSellerService,
   };

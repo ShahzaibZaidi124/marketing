@@ -3,25 +3,34 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Activity,
   BriefcaseBusiness,
   Check,
   CheckCircle2,
+  CircleDollarSign,
+  Clock3,
   Code2,
   Eye,
   EyeOff,
   FileImage,
   Globe2,
+  LayoutDashboard,
   Languages,
+  LogOut,
   MapPin,
   MessageCircle,
   Pencil,
   Plus,
+  Settings,
+  ShoppingBag,
   ShieldAlert,
   Sparkles,
+  Star,
   Trash2,
   UserRound,
 } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import DashboardLayout from "../components/DashboardLayout.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -322,6 +331,8 @@ export function SellerProfileSetup() {
     about: sellerDraft?.about || "",
     skills: sellerDraft?.skills?.join(", ") || "",
     experience: sellerDraft?.experience || "",
+    email: sellerDraft?.email || "",
+    whatsapp: sellerDraft?.whatsapp || "",
     portfolioLinks: Array.isArray(sellerDraft?.portfolioLinks)
       ? sellerDraft.portfolioLinks.join("\n")
       : sellerDraft?.portfolioUrl || "",
@@ -384,6 +395,7 @@ export function SellerProfileSetup() {
     if (profile.about.trim().length < 20) nextErrors.about = "Write at least 20 characters about yourself.";
     if (!profile.skills.trim()) nextErrors.skills = "Add at least one skill or technology.";
     if (!profile.experience) nextErrors.experience = "Select your experience level.";
+    if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email.trim())) nextErrors.email = "Enter a valid email address.";
     const portfolioLinks = profile.portfolioLinks.split(/\n|,/).map((url) => url.trim()).filter(Boolean);
     if (portfolioLinks.some((url) => !isHttpUrl(url))) nextErrors.portfolioLinks = "Enter valid portfolio URLs starting with http:// or https://.";
     if (errors.portfolioFiles) nextErrors.portfolioFiles = errors.portfolioFiles;
@@ -404,10 +416,13 @@ export function SellerProfileSetup() {
         sellerProfile: {
           ...sellerDraft,
           ...profile,
+          email: profile.email.trim(),
+          whatsapp: profile.whatsapp.trim(),
           skills: profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean),
           portfolioLinks,
           portfolioFiles,
         },
+        section: sellerDraft.dashboardReturn ? "profile" : "overview",
       },
     });
   };
@@ -479,6 +494,15 @@ export function SellerProfileSetup() {
               <label htmlFor="profile-location">Location <span className="seller-optional">Optional</span></label>
               <input id="profile-location" name="location" value={profile.location} onChange={updateProfile} placeholder="City, Country" />
             </div>
+            <div className="seller-field">
+              <label htmlFor="profile-email">Contact email <span className="seller-optional">Optional</span></label>
+              <input id="profile-email" name="email" type="email" autoComplete="email" value={profile.email} onChange={updateProfile} placeholder="you@example.com" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "profile-email-error" : undefined} />
+              <ErrorMessage id="profile-email-error">{errors.email}</ErrorMessage>
+            </div>
+            <div className="seller-field">
+              <label htmlFor="profile-whatsapp">WhatsApp / contact number <span className="seller-optional">Optional</span></label>
+              <input id="profile-whatsapp" name="whatsapp" type="tel" autoComplete="tel" value={profile.whatsapp} onChange={updateProfile} placeholder="+92 300 1234567" />
+            </div>
             <div className="seller-field seller-field-full">
               <label htmlFor="profile-portfolioLinks">Portfolio links <span className="seller-optional">Optional · One per line</span></label>
               <textarea id="profile-portfolioLinks" name="portfolioLinks" rows="3" value={profile.portfolioLinks} onChange={updateProfile} placeholder={"https://yourportfolio.com\nhttps://github.com/yourname"} aria-invalid={Boolean(errors.portfolioLinks)} aria-describedby={errors.portfolioLinks ? "profile-portfolioLinks-error" : undefined} />
@@ -531,6 +555,10 @@ export function SellerDashboard() {
   const { getOwnedServices, deleteSellerService } = useMarketplace();
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [deleteNotice, setDeleteNotice] = useState("");
+  const [activeSection, setActiveSection] = useState(
+    location.state?.section || (location.state?.serviceResult ? "services" : "overview"),
+  );
+  const [preferences, setPreferences] = useState({ orderUpdates: true, marketplaceUpdates: false });
 
   if (!sellerProfile) return <Navigate to="/seller/register" replace />;
 
@@ -538,12 +566,30 @@ export function SellerDashboard() {
   const publishedServices = ownedServices.filter((service) => service.status === "published");
   const draftServices = ownedServices.filter((service) => service.status === "draft");
   const serviceResult = location.state?.serviceResult;
-  const stats = [
-    { Icon: BriefcaseBusiness, label: "My Services", value: String(ownedServices.length), message: "Published services and drafts in this session." },
-    { Icon: Sparkles, label: "Active Orders", value: "0", message: "You don't have any active orders yet." },
-    { Icon: CheckCircle2, label: "Completed Orders", value: "0", message: "Completed orders will be listed here." },
-    { Icon: MessageCircle, label: "Messages", value: "Demo", message: "Open the session-only messaging preview." },
+  const navigation = [
+    { key: "overview", label: "Overview", Icon: LayoutDashboard },
+    { key: "services", label: "My Services", Icon: BriefcaseBusiness },
+    { key: "create-service", label: "Create New Service", Icon: Plus, to: "/seller/services/new", state: { sellerProfile } },
+    { key: "active-orders", label: "Active Orders", Icon: Clock3 },
+    { key: "completed-orders", label: "Completed Orders", Icon: CheckCircle2 },
+    { key: "messages", label: "Messages", Icon: MessageCircle, to: "/messages?role=seller", state: { sellerProfile } },
+    { key: "earnings", label: "Earnings", Icon: CircleDollarSign },
+    { key: "reviews", label: "Reviews", Icon: Star },
+    { key: "profile", label: "Edit Profile", Icon: UserRound },
+    { key: "settings", label: "Account Settings", Icon: Settings },
+    { key: "logout", label: "Logout", Icon: LogOut, onClick: () => navigate("/") },
   ];
+
+  const selectSection = (section) => {
+    if (section === "profile") {
+      navigate("/seller/profile", {
+        state: { sellerDraft: { ...sellerProfile, dashboardReturn: true } },
+      });
+      return;
+    }
+    setActiveSection(section);
+    setDeleteNotice("");
+  };
 
   const removeService = (service) => {
     if (!deleteSellerService(service.id, sellerProfile.username)) {
@@ -583,28 +629,16 @@ export function SellerDashboard() {
       </div>
   );
 
-  return (
-    <main className="market-section seller-page seller-dashboard-page">
-      <div className="seller-dashboard-topline">
-        <div><span className="market-eyebrow">SELLER WORKSPACE · DEMO</span><h1>Welcome, {sellerProfile.displayName}.</h1><p>Your seller dashboard preview is ready.</p></div>
-        <button className="market-button market-button-outline" type="button" onClick={() => navigate("/seller/profile", { state: { sellerDraft: sellerProfile } })}>Edit Profile <ArrowUpRight size={14} /></button>
-      </div>
-      <DemoNotice>This is a demo dashboard. No account, profile, service, order or message data has been saved or uploaded to a server. Refreshing or leaving this flow may clear the preview.</DemoNotice>
+  const emptyState = (Icon, title, description) => (
+    <div className="dashboard-empty-state">
+      <span><Icon size={20} /></span>
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  );
 
-      <section className="seller-dashboard-profile-card">
-        <div className="seller-dashboard-profile-avatar">{sellerProfile.avatar ? <img src={sellerProfile.avatar} alt="" /> : <UserRound size={27} />}</div>
-        <div className="seller-dashboard-profile-copy">
-          <span className="seller-dashboard-profile-label">SELLER PROFILE PREVIEW</span>
-          <h2>{sellerProfile.displayName}</h2>
-          <p>{sellerProfile.professionalTitle}</p>
-          <div className="seller-profile-skill-list">{sellerProfile.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
-        </div>
-        <div className="seller-dashboard-completion"><span>Profile completion</span><strong>100%</strong><span className="seller-dashboard-completion-track"><i /></span></div>
-      </section>
-
-      <div className="seller-dashboard-section-heading"><div><span className="market-eyebrow">YOUR SELLER ACTIVITY</span><h2>Your workspace</h2></div>
-        <Link className="market-button market-button-primary" to="/seller/services/new" state={{ sellerProfile }}><Plus size={16} /> Create New Service</Link>
-      </div>
+  const overview = (
+    <>
       {serviceResult && (
         <div className="seller-dashboard-action-notice" role="status">
           <span>{serviceResult.status === "published" ? "Service published in this browser session:" : "Draft saved in this browser session:"} <strong>{serviceResult.title}</strong>. It is not stored on a server.</span>
@@ -613,27 +647,131 @@ export function SellerDashboard() {
             : <Link to={`/seller/services/${serviceResult.id}/edit`} state={{ sellerProfile }}>Continue editing <ArrowRight size={13} /></Link>}
         </div>
       )}
-      {deleteNotice && <div className="seller-dashboard-action-notice" role="status">{deleteNotice}</div>}
+      <section className="dashboard-stat-grid" aria-label="Seller overview">
+        <article className="dashboard-stat-card"><span><BriefcaseBusiness size={17} /></span><small>Published services</small><strong>{publishedServices.length}</strong><p>Owned by this seller preview.</p></article>
+        <article className="dashboard-stat-card"><span><Clock3 size={17} /></span><small>Active orders</small><strong>Unavailable</strong><p>No order records are connected.</p></article>
+        <article className="dashboard-stat-card"><span><CheckCircle2 size={17} /></span><small>Completed orders</small><strong>Unavailable</strong><p>Order history is not available.</p></article>
+        <article className="dashboard-stat-card"><span><MessageCircle size={17} /></span><small>Messages</small><strong>Demo inbox</strong><p>No real unread counts are available.</p></article>
+      </section>
+      <section className="dashboard-seller-profile-card">
+        <div className="dashboard-seller-avatar">{sellerProfile.avatar ? <img src={sellerProfile.avatar} alt="" /> : <UserRound size={24} />}</div>
+        <div><span className="market-eyebrow">SELLER PROFILE PREVIEW</span><h2>{sellerProfile.displayName}</h2><p>{sellerProfile.professionalTitle}</p>
+          <div className="seller-profile-skill-list">{(sellerProfile.skills || []).map((skill) => <span key={skill}>{skill}</span>)}</div>
+        </div>
+        <button className="market-button market-button-outline" type="button" onClick={() => selectSection("profile")}>Edit profile <Pencil size={14} /></button>
+      </section>
+      <div className="dashboard-overview-grid">
+        <section className="dashboard-panel">
+          <div className="dashboard-section-heading"><div><span className="market-eyebrow">RECENT ACTIVITY</span><h2>Recent activity</h2></div></div>
+          {ownedServices.length
+            ? <div className="dashboard-recent-list">{ownedServices.slice(-3).reverse().map((service) => (
+              <div className="dashboard-recent-row" key={service.id}><span className="dashboard-recent-icon"><Activity size={15} /></span><span><strong>{service.title}</strong><small>{service.status === "published" ? "Published in this session" : "Draft saved in this session"}</small></span></div>
+            ))}</div>
+            : emptyState(Activity, "No activity to show", "Create a service to add activity to this session preview.")}
+        </section>
+        <section className="dashboard-panel">
+          <div className="dashboard-section-heading"><div><span className="market-eyebrow">SERVICE PERFORMANCE</span><h2>Service performance</h2></div></div>
+          {emptyState(BriefcaseBusiness, "Analytics are not connected", "Views, conversion, and performance metrics require a real listing and analytics service.")}
+        </section>
+      </div>
+    </>
+  );
 
-      <section className="seller-dashboard-grid" aria-label="Seller dashboard sections">
-        {stats.map(({ Icon, label, value, message }) => (
-          <article className="seller-dashboard-card" key={label}>
-            <div className="seller-dashboard-card-top"><span><Icon size={17} /></span><strong>{value}</strong></div>
-            <h3>{label}</h3>
-            <p>{message}</p>
-            {label === "My Services" && <Link to="/seller/services/new" state={{ sellerProfile }} className="seller-dashboard-text-button">Create your first service <ArrowRight size={13} /></Link>}
-            {label === "Messages" && <Link to="/messages?role=seller" state={{ sellerProfile }} className="seller-dashboard-text-button">Open demo inbox <ArrowRight size={13} /></Link>}
-          </article>
-        ))}
-      </section>
-      <section className="seller-dashboard-managed-services">
-        <div className="seller-dashboard-managed-heading"><div><span className="market-eyebrow">PUBLISHED SERVICES</span><h2>My Services</h2></div><span>{publishedServices.length}</span></div>
+  const servicesSection = (
+    <section className="dashboard-panel">
+      <div className="dashboard-section-heading">
+        <div><span className="market-eyebrow">YOUR LISTINGS · SESSION ONLY</span><h2>My Services</h2><p>Manage services created by this seller preview.</p></div>
+        <Link className="market-button market-button-primary" to="/seller/services/new" state={{ sellerProfile }}><Plus size={15} /> Create New Service</Link>
+      </div>
+      {serviceResult && (
+        <div className="seller-dashboard-action-notice" role="status">
+          <span>{serviceResult.status === "published" ? "Published in this session:" : "Draft saved in this session:"} <strong>{serviceResult.title}</strong>.</span>
+          {serviceResult.status === "published"
+            ? <Link to={`/services/${serviceResult.id}`}>View service <ArrowRight size={13} /></Link>
+            : <Link to={`/seller/services/${serviceResult.id}/edit`} state={{ sellerProfile }}>Continue editing <ArrowRight size={13} /></Link>}
+        </div>
+      )}
+      {deleteNotice && <div className="seller-dashboard-action-notice" role="status">{deleteNotice}</div>}
+      <div className="seller-dashboard-managed-services">
+        <div className="seller-dashboard-managed-heading"><div><span className="market-eyebrow">PUBLISHED SERVICES</span><h3>Published</h3></div><span>{publishedServices.length}</span></div>
         {renderServices(publishedServices, "Your published services will appear here.")}
-        <div className="seller-dashboard-managed-heading seller-dashboard-drafts-heading"><div><span className="market-eyebrow">WORK IN PROGRESS</span><h2>Drafts</h2></div><span>{draftServices.length}</span></div>
+        <div className="seller-dashboard-managed-heading seller-dashboard-drafts-heading"><div><span className="market-eyebrow">WORK IN PROGRESS</span><h3>Drafts</h3></div><span>{draftServices.length}</span></div>
         {renderServices(draftServices, "You don't have any drafts yet. Save a service as a draft to continue later.")}
-      </section>
-      <div className="seller-dashboard-footer-link"><Link to="/services">Explore the customer marketplace <ArrowUpRight size={14} /></Link></div>
-    </main>
+      </div>
+    </section>
+  );
+
+  const ordersSection = (
+    <section className="dashboard-panel">
+      <div className="dashboard-section-heading"><div><span className="market-eyebrow">ORDER MANAGEMENT</span><h2>{activeSection === "active-orders" ? "Active orders" : "Completed orders"}</h2><p>Only orders assigned to this seller should be shown here.</p></div></div>
+      {emptyState(ShoppingBag, "No order records to show", "Customer checkout is demo-only; no real orders, customers, prices, dates, deadlines, or statuses are stored.")}
+    </section>
+  );
+
+  const earningsSection = (
+    <section className="dashboard-panel">
+      <div className="dashboard-section-heading"><div><span className="market-eyebrow">PAYMENT SUMMARY</span><h2>Earnings</h2><p>Earnings appear only after verified payment records are connected.</p></div></div>
+      <div className="dashboard-payment-empty">
+        <span><CircleDollarSign size={22} /></span><strong>Payments not connected yet</strong>
+        <p>No earnings, balances, or financial statistics are available in this demo.</p>
+      </div>
+    </section>
+  );
+
+  const reviewsSection = (
+    <section className="dashboard-panel">
+      <div className="dashboard-section-heading"><div><span className="market-eyebrow">CUSTOMER FEEDBACK</span><h2>Reviews</h2><p>Reviews are only available when attached to completed orders.</p></div></div>
+      {emptyState(Star, "No reviews available", "There is no review system connected, and no sample ratings are generated.")}
+    </section>
+  );
+
+  const profileSection = (
+    <section className="dashboard-panel">
+      <div className="dashboard-section-heading">
+        <div><span className="market-eyebrow">SELLER PROFILE PREVIEW</span><h2>Edit profile</h2><p>Your updated seller information is available in this browser session.</p></div>
+        <button className="market-button market-button-primary" type="button" onClick={() => selectSection("profile")}><Pencil size={14} /> Edit profile</button>
+      </div>
+      <div className="dashboard-profile-summary">
+        <strong>{sellerProfile.displayName}</strong>
+        <span>{sellerProfile.professionalTitle}</span>
+        <p>{sellerProfile.about || "No profile description has been added."}</p>
+        <div><span>Email: {sellerProfile.email || "Not provided"}</span><span>Contact: {sellerProfile.whatsapp || "Not provided"}</span></div>
+        <div className="seller-profile-skill-list">{(sellerProfile.skills || []).map((skill) => <span key={skill}>{skill}</span>)}</div>
+        {sellerProfile.portfolioLinks?.length > 0 && <ul>{sellerProfile.portfolioLinks.map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>)}</ul>}
+      </div>
+    </section>
+  );
+
+  const settingsSection = (
+    <section className="dashboard-panel">
+      <div className="dashboard-section-heading"><div><span className="market-eyebrow">YOUR PREFERENCES</span><h2>Account settings</h2><p>Preferences are local to this page session.</p></div></div>
+      <div className="dashboard-settings-list">
+        <label><span><strong>Order updates</strong><small>Real order notifications are unavailable without an order backend.</small></span><input type="checkbox" checked={preferences.orderUpdates} onChange={(event) => setPreferences((current) => ({ ...current, orderUpdates: event.target.checked }))} /></label>
+        <label><span><strong>Marketplace announcements</strong><small>Optional product and marketplace updates.</small></span><input type="checkbox" checked={preferences.marketplaceUpdates} onChange={(event) => setPreferences((current) => ({ ...current, marketplaceUpdates: event.target.checked }))} /></label>
+      </div>
+      <p className="dashboard-inline-note">Preferences are not sent to or saved on a server.</p>
+    </section>
+  );
+
+  let content = overview;
+  if (activeSection === "services") content = servicesSection;
+  else if (activeSection === "active-orders" || activeSection === "completed-orders") content = ordersSection;
+  else if (activeSection === "earnings") content = earningsSection;
+  else if (activeSection === "reviews") content = reviewsSection;
+  else if (activeSection === "profile") content = profileSection;
+  else if (activeSection === "settings") content = settingsSection;
+
+  return (
+    <DashboardLayout
+      role="SELLER"
+      displayName={sellerProfile.displayName}
+      avatar={sellerProfile.avatar}
+      activeSection={activeSection}
+      navigation={navigation}
+      onSelect={selectSection}
+    >
+      {content}
+    </DashboardLayout>
   );
 }
 

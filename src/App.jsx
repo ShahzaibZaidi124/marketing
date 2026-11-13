@@ -12,6 +12,7 @@ import ExploreServices from "./pages/ExploreServices.jsx";
 import ServiceDetails from "./pages/ServiceDetails.jsx";
 import ServiceOrder from "./pages/ServiceOrder.jsx";
 import Messages from "./pages/Messages.jsx";
+import CustomerDashboard from "./pages/CustomerDashboard.jsx";
 import {
   SellerDashboard,
   SellerIntro,
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/services/:id/order" element={<ServiceOrder />} />
         <Route path="/services/:id" element={<ServiceDetails />} />
         <Route path="/messages" element={<Messages />} />
+        <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/seller" element={<SellerIntro />} />
         <Route path="/seller/register" element={<SellerRegistration />} />
         <Route path="/seller/profile" element={<SellerProfileSetup />} />

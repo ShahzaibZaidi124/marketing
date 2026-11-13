@@ -3,6 +3,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Bookmark,
+  BookmarkCheck,
   Check,
   Clock3,
   Code2,
@@ -85,7 +87,7 @@ function PricingPackage({ packageOption, selected, onSelect, isSellerService }) 
 export default function ServiceDetails() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { allServices } = useMarketplace();
+  const { allServices, savedServiceIds, toggleSavedService, recordRecentlyViewed } = useMarketplace();
   const packageParam = searchParams.get("package");
   const service = allServices.find((item) => item.id === id);
   const isSellerService = Boolean(service?.ownerUsername);
@@ -99,6 +101,10 @@ export default function ServiceDetails() {
     setSelectedImage(0);
     setSelectedPackageId(packageOptions.some((item) => item.id === packageParam) ? packageParam : packageOptions[0]?.id || "");
   }, [id, packageParam, packageOptions]);
+
+  useEffect(() => {
+    if (service) recordRecentlyViewed(service.id);
+  }, [service, recordRecentlyViewed]);
 
   if (!service) {
     return (
@@ -149,6 +155,15 @@ export default function ServiceDetails() {
         </div>
         <p className="service-detail-description">{service.description}</p>
         <span className="service-detail-sample-note">{isSellerService ? "Seller-created service · Demo listing, not permanently published" : "Sample listing · Seller level, reviews and ratings are not provided"}</span>
+        <button
+          className="market-button market-button-outline service-save-button"
+          type="button"
+          aria-pressed={savedServiceIds.includes(service.id)}
+          onClick={() => toggleSavedService(service.id)}
+        >
+          {savedServiceIds.includes(service.id) ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+          {savedServiceIds.includes(service.id) ? "Saved to your demo list" : "Save service"}
+        </button>
       </header>
 
       <ServiceGallery

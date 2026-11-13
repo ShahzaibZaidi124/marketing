@@ -2,17 +2,19 @@ import { Clock3 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function MarketplaceServiceCard({ service }) {
+  const isSellerService = Boolean(service.ownerUsername);
+
   return (
     <article className="browse-service-card">
       <Link className="browse-service-preview" to={`/services/${service.id}`} aria-label={`View ${service.title}`}>
-        <img src={service.image} alt={`Sample website preview for ${service.category}`} loading="lazy" />
-        <span className="browse-sample-badge">SAMPLE LISTING</span>
+        <img src={service.image} alt={`${isSellerService ? "Website preview" : "Sample website preview"} for ${service.category}`} loading="lazy" />
+        <span className="browse-sample-badge">{isSellerService ? "SELLER PREVIEW" : "SAMPLE LISTING"}</span>
         <span className="browse-category-badge">{service.category}</span>
       </Link>
       <div className="browse-service-content">
         <div className="browse-seller">
           <img src={service.sellerImage} alt="" loading="lazy" />
-          <span><small>Sample seller</small><strong>{service.seller}</strong></span>
+          <span><small>{isSellerService ? "Seller preview" : "Sample seller"}</small><strong>{service.seller}</strong></span>
         </div>
         <h2><Link to={`/services/${service.id}`}>{service.title}</Link></h2>
         <p>{service.description}</p>

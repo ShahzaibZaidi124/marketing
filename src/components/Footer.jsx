@@ -20,6 +20,7 @@ export default function Footer() {
           <div>
             <h4>Discover</h4>
             <Link to="/services">Explore Services</Link>
+            <Link to="/messages?role=customer">Messages demo</Link>
             <Link to="/services">Categories</Link>
             <Link to="/templates">Website Templates</Link>
             <Link to="/about">About TechStudio</Link>
@@ -35,7 +36,7 @@ export default function Footer() {
             <h4>Information</h4>
             <a href="mailto:hello@techstudio.pk?subject=Privacy%20policy%20request">Privacy Policy</a>
             <a href="mailto:hello@techstudio.pk?subject=Terms%20and%20conditions%20request">Terms and Conditions</a>
-            <Link to="/#seller">Become a Seller <ArrowUpRight size={12} /></Link>
+            <Link to="/seller">Become a Seller <ArrowUpRight size={12} /></Link>
           </div>
         </div>
       </div>

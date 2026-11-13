@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ListFilter, Search, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import MarketplaceServiceCard from "../components/MarketplaceServiceCard.jsx";
-import { serviceCategories, serviceListings } from "../data/services.js";
+import { serviceCategories } from "../data/services.js";
+import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const sortOptions = [
   { value: "recommended", label: "Recommended" },
@@ -23,6 +24,7 @@ function isValidCategory(categoryId) {
 }
 
 export default function ExploreServices() {
+  const { allServices } = useMarketplace();
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category") || "all";
   const [selectedCategory, setSelectedCategory] = useState(
@@ -45,7 +47,7 @@ export default function ExploreServices() {
     const max = maxPrice === "" ? Infinity : Number(maxPrice);
     const sellerTerm = sellerInput.trim().toLowerCase();
 
-    return serviceListings
+    return allServices
       .filter((service) => {
         const matchesTitle = !searchTerm || service.title.toLowerCase().includes(searchTerm);
         const matchesCategory = selectedCategory === "all" || service.categoryId === selectedCategory;
@@ -60,7 +62,7 @@ export default function ExploreServices() {
         if (sortOrder === "newest") return Date.parse(second.createdAt) - Date.parse(first.createdAt);
         return first.recommendedOrder - second.recommendedOrder;
       });
-  }, [deliveryLimit, maxPrice, minPrice, searchTerm, selectedCategory, sellerInput, sortOrder]);
+  }, [allServices, deliveryLimit, maxPrice, minPrice, searchTerm, selectedCategory, sellerInput, sortOrder]);
 
   function chooseCategory(categoryId) {
     setSelectedCategory(categoryId);
@@ -110,7 +112,7 @@ export default function ExploreServices() {
             )}
             <button className="market-button market-button-primary" type="submit">Search <ArrowRight size={16} /></button>
           </form>
-          <span className="explore-sample-note">Sample service listings · No reviews or verification claims</span>
+          <span className="explore-sample-note">Sample and seller preview listings · Seller previews are session-only</span>
         </div>
       </section>
 
@@ -122,10 +124,10 @@ export default function ExploreServices() {
             <legend>Categories</legend>
             <div className="filter-category-list">
               <button className={selectedCategory === "all" ? "filter-category active" : "filter-category"} type="button" aria-pressed={selectedCategory === "all"} onClick={() => chooseCategory("all")}>
-                <span>All categories</span><small>{serviceListings.length}</small>
+                <span>All categories</span><small>{allServices.length}</small>
               </button>
               {serviceCategories.map((category) => {
-                const count = serviceListings.filter((service) => service.categoryId === category.id).length;
+                const count = allServices.filter((service) => service.categoryId === category.id).length;
                 return (
                   <button
                     className={selectedCategory === category.id ? "filter-category active" : "filter-category"}
@@ -165,7 +167,7 @@ export default function ExploreServices() {
 
         <section className="explore-results" aria-label="Website development services">
           <div className="explore-results-heading">
-            <div><h2>{selectedCategory === "all" ? "Website development services" : serviceCategories.find((category) => category.id === selectedCategory)?.name}</h2><p>{filteredServices.length} sample {filteredServices.length === 1 ? "service" : "services"}</p></div>
+            <div><h2>            {selectedCategory === "all" ? "Website development services" : serviceCategories.find((category) => category.id === selectedCategory)?.name}</h2><p>{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"}</p></div>
             <label className="sort-control"><span>Sort by</span><select aria-label="Sort services" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>{sortOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
           </div>
 

@@ -11,6 +11,15 @@ import Order from "./pages/Order.jsx";
 import ExploreServices from "./pages/ExploreServices.jsx";
 import ServiceDetails from "./pages/ServiceDetails.jsx";
 import ServiceOrder from "./pages/ServiceOrder.jsx";
+import Messages from "./pages/Messages.jsx";
+import {
+  SellerDashboard,
+  SellerIntro,
+  SellerLoginUnavailable,
+  SellerProfileSetup,
+  SellerRegistration,
+} from "./pages/SellerPages.jsx";
+import ServiceEditor from "./pages/ServiceEditor.jsx";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -38,6 +47,14 @@ export default function App() {
         <Route path="/services" element={<ExploreServices />} />
         <Route path="/services/:id/order" element={<ServiceOrder />} />
         <Route path="/services/:id" element={<ServiceDetails />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/seller" element={<SellerIntro />} />
+        <Route path="/seller/register" element={<SellerRegistration />} />
+        <Route path="/seller/profile" element={<SellerProfileSetup />} />
+        <Route path="/seller/dashboard" element={<SellerDashboard />} />
+        <Route path="/seller/services/new" element={<ServiceEditor />} />
+        <Route path="/seller/services/:id/edit" element={<ServiceEditor />} />
+        <Route path="/seller/login" element={<SellerLoginUnavailable />} />
         <Route path="/studio-services" element={<Services />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />

@@ -5,8 +5,9 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 const links = [
   { label: "Home", to: "/" },
   { label: "Explore Services", to: "/services" },
+  { label: "Messages", to: "/messages?role=customer" },
   { label: "Categories", to: "/#categories" },
-  { label: "Become a Seller", to: "/#seller" },
+  { label: "Become a Seller", to: "/seller" },
 ];
 
 export default function Header() {
@@ -42,8 +43,8 @@ export default function Header() {
               {label}
             </NavLink>
           ))}
-          <a className="nav-login" href="mailto:hello@techstudio.pk?subject=TechStudio%20account%20access" onClick={closeMenu}>Login</a>
-          <Link className="market-button market-button-primary nav-signup" to="/#seller" onClick={closeMenu}>
+          <Link className="nav-login" to="/seller/login" onClick={closeMenu}>Login</Link>
+          <Link className="market-button market-button-primary nav-signup" to="/seller/register" onClick={closeMenu}>
             Sign Up <ArrowUpRight size={14} />
           </Link>
         </nav>

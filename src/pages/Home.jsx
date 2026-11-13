@@ -15,6 +15,7 @@ import {
 import { Link } from "react-router-dom";
 import ServiceCard from "../components/ServiceCard.jsx";
 import { serviceListings } from "../data/services.js";
+import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const categories = [
   { id: "business-websites", name: "Business Websites", detail: "For growing businesses", Icon: BriefcaseBusiness },
@@ -36,19 +37,22 @@ const steps = [
 ];
 
 export default function Home() {
+  const { allServices, publishedServices } = useMarketplace();
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
 
   const filteredServices = useMemo(() => {
     const searchTerm = submittedQuery.trim().toLowerCase();
-    const availableServices = searchTerm ? serviceListings : serviceListings.slice(0, 4);
+    const availableServices = searchTerm
+      ? allServices
+      : [...publishedServices, ...serviceListings].slice(0, 4);
     if (!searchTerm) return availableServices;
     return availableServices.filter((service) =>
       `${service.title} ${service.category} ${service.description} ${service.tags.join(" ")}`
         .toLowerCase()
         .includes(searchTerm),
     );
-  }, [submittedQuery]);
+  }, [allServices, publishedServices, submittedQuery]);
 
   function searchServices(event) {
     event.preventDefault();
@@ -156,7 +160,7 @@ export default function Home() {
           <span className="market-eyebrow">For developers with a point of view</span>
           <h2>Turn Your Skills Into Opportunities</h2>
           <p>Join TechStudio and start offering your website development services.</p>
-          <a className="market-button market-button-light" href="mailto:hello@techstudio.pk?subject=Become%20a%20TechStudio%20seller">Become a Seller <ArrowUpRight size={16} /></a>
+          <Link className="market-button market-button-light" to="/seller">Become a Seller <ArrowUpRight size={16} /></Link>
         </div>
         <div className="seller-banner-art" aria-hidden="true">
           <span className="seller-code-line"><i /> const goodIdeas = buildTogether();</span>

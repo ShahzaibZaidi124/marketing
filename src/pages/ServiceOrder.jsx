@@ -11,7 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { serviceListings, servicePackages } from "../data/services.js";
+import { servicePackages } from "../data/services.js";
+import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const websiteTypes = ["Business", "E-commerce", "Portfolio", "Restaurant", "Blog", "Other"];
 const requiredFeatures = [
@@ -43,8 +44,11 @@ function ReviewValue({ label, value }) {
 export default function ServiceOrder() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const service = serviceListings.find((item) => item.id === id);
-  const packageOption = servicePackages.find((item) => item.id === searchParams.get("package"));
+  const { allServices } = useMarketplace();
+  const service = allServices.find((item) => item.id === id);
+  const isSellerService = Boolean(service?.ownerUsername);
+  const packageOptions = service?.packages || servicePackages;
+  const packageOption = packageOptions.find((item) => item.id === searchParams.get("package"));
   const [form, setForm] = useState({
     projectName: "",
     websiteType: "",
@@ -180,7 +184,7 @@ export default function ServiceOrder() {
             <div className="service-order-listing-content">
               <img src={service.sellerImage} alt="" />
               <div className="service-order-listing-copy">
-                <span>{service.seller} · Sample seller</span>
+                <span>{service.seller} · {isSellerService ? "Seller preview" : "Sample seller"}</span>
                 <h3>{service.title}</h3>
                 <p>{packageOption.name} package · {packageOption.deliveryDays} days</p>
               </div>
@@ -330,7 +334,7 @@ export default function ServiceOrder() {
               <ReviewValue label="Additional instructions" value={form.additionalInstructions} />
             </dl>
             <div className="service-order-review-total"><span>Total</span><strong>{formattedPrice}</strong></div>
-            <div className="service-order-review-demo"><Clock3 size={14} /><span>{packageOption.deliveryDays}-day delivery · Sample listing for demonstration</span></div>
+            <div className="service-order-review-demo"><Clock3 size={14} /><span>{packageOption.deliveryDays}-day delivery · {isSellerService ? "Seller preview in demo mode" : "Sample listing for demonstration"}</span></div>
           </div>
         </aside>
       </div>

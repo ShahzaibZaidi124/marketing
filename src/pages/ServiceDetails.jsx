@@ -8,7 +8,7 @@ import {
   Code2,
   MonitorSmartphone,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { serviceDetailsByCategory, serviceListings, servicePackages } from "../data/services.js";
 
 const frequentlyAskedQuestions = [
@@ -83,16 +83,18 @@ function PricingPackage({ packageOption, selected, onSelect }) {
 
 export default function ServiceDetails() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const packageParam = searchParams.get("package");
   const service = serviceListings.find((item) => item.id === id);
   const details = service ? serviceDetailsByCategory[service.categoryId] : undefined;
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedPackageId, setSelectedPackageId] = useState("basic");
+  const [selectedPackageId, setSelectedPackageId] = useState(packageParam || "basic");
   const selectedPackage = servicePackages.find((item) => item.id === selectedPackageId) || servicePackages[0];
 
   useEffect(() => {
     setSelectedImage(0);
-    setSelectedPackageId("basic");
-  }, [id]);
+    setSelectedPackageId(servicePackages.some((item) => item.id === packageParam) ? packageParam : "basic");
+  }, [id, packageParam]);
 
   if (!service) {
     return (

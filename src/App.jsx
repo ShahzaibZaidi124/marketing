@@ -10,7 +10,7 @@ import Demo from "./pages/Demo.jsx";
 import Order from "./pages/Order.jsx";
 import ExploreServices from "./pages/ExploreServices.jsx";
 import ServiceDetails from "./pages/ServiceDetails.jsx";
-import ServiceOrderPlaceholder from "./pages/ServiceOrderPlaceholder.jsx";
+import ServiceOrder from "./pages/ServiceOrder.jsx";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -36,7 +36,7 @@ export default function App() {
         <Route path="/demo/:id" element={<Demo />} />
         <Route path="/order/:id" element={<Order />} />
         <Route path="/services" element={<ExploreServices />} />
-        <Route path="/services/:id/order" element={<ServiceOrderPlaceholder />} />
+        <Route path="/services/:id/order" element={<ServiceOrder />} />
         <Route path="/services/:id" element={<ServiceDetails />} />
         <Route path="/studio-services" element={<Services />} />
         <Route path="/about" element={<About />} />

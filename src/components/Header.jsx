@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { signInWithGoogle } from "../lib/auth.js";
 
 const links = [
   { label: "Home", to: "/" },
@@ -16,9 +17,25 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState("");
   const { user, loading, signOut } = useAuth();
 
   const closeMenu = () => setMenuOpen(false);
+  const handleSignIn = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+    setSignInError("");
+    closeMenu();
+    try {
+      await signInWithGoogle();
+    } catch (authError) {
+      setSignInError(authError instanceof Error
+        ? authError.message
+        : "Google sign-in could not be started. Please try again.");
+      setSigningIn(false);
+    }
+  };
   const handleSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -42,9 +59,9 @@ export default function Header() {
   return (
     <header className="site-header">
       <div className="nav-shell">
-        <Link className="brand" to="/" aria-label="TechStudio home" onClick={closeMenu}>
+        <Link className="brand" to="/" aria-label="NexTech home" onClick={closeMenu}>
           <span className="brand-mark"><span /></span>
-          <span>techstudio<span className="brand-period">.</span></span>
+          <span>NexTech<span className="brand-period">.</span></span>
         </Link>
         <button
           className="menu-toggle"
@@ -87,7 +104,16 @@ export default function Header() {
             </>
           ) : (
             <>
-              <Link className="nav-login" to="/seller/login" onClick={closeMenu}>Login</Link>
+              <button
+                className="nav-login"
+                type="button"
+                onClick={handleSignIn}
+                disabled={signingIn}
+                aria-busy={signingIn}
+              >
+                {signingIn ? "Connecting…" : "Login"}
+              </button>
+              {signInError && <span className="nav-auth-error" role="alert">{signInError}</span>}
               <Link className="market-button market-button-primary nav-signup" to="/seller/register" onClick={closeMenu}>
                 Sign Up <ArrowUpRight size={14} />
               </Link>

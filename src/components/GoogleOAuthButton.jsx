@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { getSupabaseClient } from "../lib/supabase.js";
+import { signInWithGoogle } from "../lib/auth.js";
 
 function GoogleLogo() {
   return (
@@ -23,14 +23,7 @@ export default function GoogleOAuthButton({ initialError = "" }) {
     setError("");
 
     try {
-      const { error: authError } = await getSupabaseClient().auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (authError) throw authError;
+      await signInWithGoogle();
     } catch (authError) {
       setError(authError instanceof Error
         ? authError.message

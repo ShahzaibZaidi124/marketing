@@ -5,7 +5,7 @@ export default function Templates() {
   return (
     <main>
       <section className="page-hero templates-hero">
-        <div className="section-topline"><span>THE TECHSTUDIO MARKETPLACE</span><span>MADE WITH INTENTION, IN PAKISTAN</span></div>
+        <div className="section-topline"><span>THE NEXTECH MARKETPLACE</span><span>MADE WITH INTENTION, IN PAKISTAN</span></div>
         <div className="page-hero-content">
           <span className="eyebrow"><Sparkles size={13} /> A considered collection</span>
           <h1>Less blank canvas.<br /><span className="gradient-text">More brilliant ideas.</span></h1>

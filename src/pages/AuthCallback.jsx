@@ -9,6 +9,7 @@ export default function AuthCallback() {
     const hashParams = new URLSearchParams(callbackUrl.hash.slice(1));
     return {
       code: callbackUrl.searchParams.get("code"),
+      returnTo: callbackUrl.searchParams.get("next") === "/seller/profile" ? "/seller/profile" : "/",
       error: callbackUrl.searchParams.get("error_description")
         || callbackUrl.searchParams.get("error")
         || hashParams.get("error_description")
@@ -33,21 +34,34 @@ export default function AuthCallback() {
 
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-        if (!data.session) {
-          throw new Error("Google sign-in returned no authorization code or active session. Please try again.");
-        }
+        if (!data.session) throw new Error("Authentication returned no authorization code or active session. Please try again.");
 
         return data.session;
       })();
     }
 
-    completion.current.then(() => {
-      if (active) navigate("/", { replace: true });
+    completion.current.then((session) => {
+      if (!active) return;
+      const metadata = session.user.user_metadata || {};
+      const sellerDetails = metadata.seller_details || {};
+      const sellerDraft = {
+        fullName: metadata.full_name || "",
+        username: metadata.username || "",
+        email: session.user.email || "",
+        about: sellerDetails.about || "",
+        skills: Array.isArray(sellerDetails.skills) ? sellerDetails.skills : [],
+        experience: sellerDetails.experience || "",
+        portfolioUrl: sellerDetails.portfolioUrl || "",
+      };
+      navigate(callbackParams.returnTo, {
+        replace: true,
+        state: callbackParams.returnTo === "/seller/profile" ? { sellerDraft } : undefined,
+      });
     }).catch((authError) => {
       if (!active) return;
       const message = authError instanceof Error
         ? authError.message
-        : "Google sign-in could not be completed. Please try again.";
+        : "Sign-in could not be completed. Please try again.";
       navigate("/seller/login", { replace: true, state: { authError: message } });
     });
 
@@ -59,9 +73,9 @@ export default function AuthCallback() {
   return (
     <main className="market-section seller-page seller-login-page">
       <div className="seller-login-card" role="status" aria-live="polite">
-        <span className="market-eyebrow">GOOGLE SIGN-IN</span>
+        <span className="market-eyebrow">ACCOUNT SIGN-IN</span>
         <h1>Completing sign-in…</h1>
-        <p>Verifying your TechStudio session with Supabase.</p>
+        <p>Verifying your NexTech session with Supabase.</p>
       </div>
     </main>
   );

@@ -159,7 +159,7 @@ export default function Home() {
         <div className="seller-banner-copy">
           <span className="market-eyebrow">For developers with a point of view</span>
           <h2>Turn Your Skills Into Opportunities</h2>
-          <p>Join TechStudio and start offering your website development services.</p>
+          <p>Join NexTech and start offering your website development services.</p>
           <Link className="market-button market-button-light" to="/seller">Become a Seller <ArrowUpRight size={16} /></Link>
         </div>
         <div className="seller-banner-art" aria-hidden="true">
@@ -171,7 +171,7 @@ export default function Home() {
       </section>
 
       <section className="market-section how-section" id="how-it-works">
-        <div className="how-heading"><span className="market-eyebrow">Simple from first search to first hello</span><h2>How TechStudio works</h2><p>A better way to find the people who can bring your website idea to life.</p></div>
+        <div className="how-heading"><span className="market-eyebrow">Simple from first search to first hello</span><h2>How NexTech works</h2><p>A better way to find the people who can bring your website idea to life.</p></div>
         <div className="how-steps">
           {steps.map(({ number, title, description, Icon }, index) => (
             <article className="how-step" key={number}>

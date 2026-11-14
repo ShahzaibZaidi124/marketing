@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,6 +30,14 @@ import {
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout.jsx";
 import GoogleOAuthButton from "../components/GoogleOAuthButton.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import {
+  getUserProfile,
+  saveUserProfile,
+  signInWithEmail,
+  signUpWithEmail,
+  updateUserMetadata,
+} from "../lib/auth.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -84,7 +92,7 @@ export function SellerIntro() {
         <div className="seller-intro-glow seller-intro-glow-purple" />
         <div className="seller-intro-copy">
           <span className="market-eyebrow"><span className="market-eyebrow-dot" /> FOR WEBSITE DEVELOPERS</span>
-          <h1>Become a Seller on <span>TechStudio</span></h1>
+          <h1>Become a Seller on <span>NexTech</span></h1>
           <p>Share your website development skills, showcase your work and connect with customers.</p>
           <Link className="market-button market-button-primary seller-primary-cta" to="/seller/register">Start Selling <ArrowRight size={16} /></Link>
           <span className="seller-intro-login">Already have an account? <Link to="/seller/login">Log in</Link></span>
@@ -93,7 +101,7 @@ export function SellerIntro() {
           <span className="seller-intro-art-orbit seller-intro-art-orbit-one" />
           <span className="seller-intro-art-orbit seller-intro-art-orbit-two" />
           <span className="seller-intro-art-card seller-intro-art-card-back"><Code2 size={20} /><span>Build something great</span></span>
-          <span className="seller-intro-art-card seller-intro-art-card-front"><span className="seller-intro-art-avatar"><UserRound size={23} /></span><span><strong>Your next chapter</strong><small>Share your talent with TechStudio</small></span><ArrowUpRight size={18} /></span>
+          <span className="seller-intro-art-card seller-intro-art-card-front"><span className="seller-intro-art-avatar"><UserRound size={23} /></span><span><strong>Your next chapter</strong><small>Share your talent with NexTech</small></span><ArrowUpRight size={18} /></span>
           <span className="seller-intro-art-spark seller-intro-art-spark-one" />
           <span className="seller-intro-art-spark seller-intro-art-spark-two" />
         </div>
@@ -114,10 +122,10 @@ export function SellerIntro() {
           ))}
         </div>
         <div className="seller-intro-bottom-cta">
-          <div><h2>Ready to share what you build?</h2><p>Create a profile preview and see how your seller workspace will look.</p></div>
+          <div><h2>Ready to share what you build?</h2><p>Create a seller account and save your professional profile details.</p></div>
           <Link className="market-button market-button-primary" to="/seller/register">Start Selling <ArrowRight size={15} /></Link>
         </div>
-        <DemoNotice>Seller registration is currently a demo. No account is created, and profile information is not sent to or saved on a server.</DemoNotice>
+        <DemoNotice>Seller accounts use Supabase authentication. Seller profile details are saved to your account; service listings and selected image or portfolio files are not published or uploaded.</DemoNotice>
       </section>
     </main>
   );
@@ -126,9 +134,13 @@ export function SellerIntro() {
 export function SellerRegistration() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const existingDraft = location.state?.sellerDraft;
   const [errors, setErrors] = useState({});
   const [avatarPreview, setAvatarPreview] = useState(existingDraft?.avatar || "");
+  const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const clearError = (event) => {
     const { name } = event.target;
@@ -153,7 +165,7 @@ export function SellerRegistration() {
     setAvatarPreview(URL.createObjectURL(file));
   };
 
-  const submitRegistration = (event) => {
+  const submitRegistration = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const values = form.elements;
@@ -161,6 +173,7 @@ export function SellerRegistration() {
     const fullName = values.namedItem("fullName").value.trim();
     const username = values.namedItem("username").value.trim();
     const email = values.namedItem("email").value.trim();
+    const password = user ? "" : values.namedItem("password").value;
     const about = values.namedItem("about").value.trim();
     const skills = values.namedItem("skills").value.split(",").map((skill) => skill.trim()).filter(Boolean);
     const experience = values.namedItem("experience").value;
@@ -169,6 +182,7 @@ export function SellerRegistration() {
     if (fullName.length < 2) nextErrors.fullName = "Enter your full name.";
     if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) nextErrors.username = "Use 3–20 letters, numbers or underscores.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = "Enter a valid email address.";
+    if (!user && password.length < 8) nextErrors.password = "Use a password with at least 8 characters.";
     if (about.length < 20) nextErrors.about = "Tell customers a little more about yourself (at least 20 characters).";
     if (skills.length === 0) nextErrors.skills = "Add at least one skill, separated by commas.";
     if (!experience) nextErrors.experience = "Select your experience level.";
@@ -183,20 +197,67 @@ export function SellerRegistration() {
       return;
     }
 
-    navigate("/seller/profile", {
-      state: {
-        sellerDraft: {
-          fullName,
-          username,
+    const sellerDetails = { about, skills, experience, portfolioUrl };
+    const sellerDraft = {
+      fullName,
+      username: username.toLowerCase(),
+      email,
+      about,
+      skills,
+      experience,
+      portfolioUrl,
+      avatar: avatarPreview,
+    };
+
+    setSubmitting(true);
+    setAuthError("");
+    setAuthMessage("");
+    let accountExists = Boolean(user);
+    try {
+      let accountUser = user;
+      if (user) {
+        accountUser = await updateUserMetadata({
+          full_name: fullName,
+          role: "seller",
+          username: sellerDraft.username,
+          seller_details: sellerDetails,
+        });
+      } else {
+        const signup = await signUpWithEmail({
           email,
-          about,
-          skills,
-          experience,
-          portfolioUrl,
-          avatar: avatarPreview,
-        },
-      },
-    });
+          password,
+          fullName,
+          username: sellerDraft.username,
+          sellerDetails,
+        });
+        accountUser = signup.user;
+        accountExists = Boolean(accountUser);
+        if (!signup.session) {
+          setAuthMessage("Your account was created. Check your email and confirm the address to continue; the confirmation link will return you to seller profile setup.");
+          return;
+        }
+      }
+
+      if (!accountUser?.id) throw new Error("Supabase created no user account. Please try again.");
+      await saveUserProfile({
+        userId: accountUser.id,
+        email: accountUser.email || email,
+        fullName,
+        username: sellerDraft.username,
+        role: "seller",
+        sellerDetails,
+      });
+      navigate("/seller/profile", { state: { sellerDraft } });
+    } catch (registrationError) {
+      const details = registrationError instanceof Error
+        ? registrationError.message
+        : "Please try again.";
+      setAuthError(accountExists
+        ? `Your account exists, but its seller profile could not be saved: ${details}`
+        : details);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -206,22 +267,22 @@ export function SellerRegistration() {
         <section className="seller-form-intro">
           <SellerPageHeading
             eyebrow="YOUR SELLER PROFILE STARTS HERE"
-            title="Create a seller profile preview"
-            description="Sign in with Google, or explore the local seller-profile preview."
+            title="Create a seller account"
+            description="Register with email and password or continue with Google. Your account is managed securely by Supabase."
           />
           <div className="seller-form-aside-card">
             <span className="seller-form-aside-icon"><ShieldAlert size={20} /></span>
-            <h2>Profile preview</h2>
-            <p>The form below is local-only and does not create a seller profile. Google authentication is handled separately by Supabase.</p>
-            <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Create a profile preview</span>
-            <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Set up your seller page</span>
-            <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Explore the demo dashboard</span>
+            <h2>Seller account</h2>
+            <p>Your account and text profile details are saved in Supabase. Profile pictures and portfolio files are only previewed locally.</p>
+            <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Create or update your Supabase account</span>
+            <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Save your seller profile details</span>
+            <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Preview the seller workspace</span>
           </div>
         </section>
 
         <form className="seller-form-card" onSubmit={submitRegistration} noValidate>
-          <GoogleOAuthButton />
-          <div className="google-oauth-divider"><span>OR CONTINUE WITH PROFILE PREVIEW</span></div>
+          {!user && <GoogleOAuthButton />}
+          {!user && <div className="google-oauth-divider"><span>OR CREATE AN ACCOUNT WITH EMAIL</span></div>}
           <div className="seller-form-card-heading">
             <span className="seller-form-step-number">01</span>
             <div><h2>Seller information</h2><p>Fields marked <span>*</span> are required.</p></div>
@@ -229,27 +290,35 @@ export function SellerRegistration() {
           <div className="seller-form-grid">
             <div className="seller-field">
               <label htmlFor="sellerFullName">Full name <span>*</span></label>
-              <input id="sellerFullName" name="fullName" autoComplete="name" defaultValue={existingDraft?.fullName || ""} onChange={clearError} placeholder="Your name" aria-invalid={Boolean(errors.fullName)} aria-describedby={errors.fullName ? "sellerFullName-error" : undefined} />
+              <input id="sellerFullName" name="fullName" autoComplete="name" defaultValue={existingDraft?.fullName || user?.user_metadata?.full_name || ""} onChange={clearError} placeholder="Your name" aria-invalid={Boolean(errors.fullName)} aria-describedby={errors.fullName ? "sellerFullName-error" : undefined} />
               <ErrorMessage id="sellerFullName-error">{errors.fullName}</ErrorMessage>
             </div>
             <div className="seller-field">
               <label htmlFor="sellerUsername">Username <span>*</span></label>
               <input id="sellerUsername" name="username" autoComplete="username" defaultValue={existingDraft?.username || ""} onChange={clearError} placeholder="e.g. samdev" aria-invalid={Boolean(errors.username)} aria-describedby={errors.username ? "sellerUsername-error" : "sellerUsername-help"} />
-              <span className="seller-field-hint" id="sellerUsername-help">Availability cannot be checked in demo mode.</span>
+              <span className="seller-field-hint" id="sellerUsername-help">Username is checked for availability when your profile is saved.</span>
               <ErrorMessage id="sellerUsername-error">{errors.username}</ErrorMessage>
             </div>
             <div className="seller-field seller-field-full">
               <label htmlFor="sellerEmail">Email address <span>*</span></label>
-              <input id="sellerEmail" name="email" type="email" autoComplete="email" defaultValue={existingDraft?.email || ""} onChange={clearError} placeholder="you@example.com" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "sellerEmail-error" : undefined} />
+              <input id="sellerEmail" name="email" type="email" autoComplete="email" defaultValue={existingDraft?.email || user?.email || ""} onChange={clearError} placeholder="you@example.com" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "sellerEmail-error" : undefined} />
               <ErrorMessage id="sellerEmail-error">{errors.email}</ErrorMessage>
             </div>
+            {!user && (
+              <div className="seller-field seller-field-full">
+                <label htmlFor="sellerPassword">Password <span>*</span></label>
+                <input id="sellerPassword" name="password" type="password" autoComplete="new-password" onChange={clearError} placeholder="At least 8 characters" aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "sellerPassword-error" : "sellerPassword-help"} />
+                <span className="seller-field-hint" id="sellerPassword-help">Sent directly to Supabase Auth; the NexTech app never reads or stores your password.</span>
+                <ErrorMessage id="sellerPassword-error">{errors.password}</ErrorMessage>
+              </div>
+            )}
             <div className="seller-field seller-field-full">
               <label htmlFor="sellerAvatar">Profile picture <span className="seller-optional">Optional · JPG, PNG or WebP up to 5 MB</span></label>
               <div className="seller-avatar-upload">
                 <span className="seller-avatar-preview">{avatarPreview ? <img src={avatarPreview} alt="Profile preview" /> : <UserRound size={21} />}</span>
                 <input id="sellerAvatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} aria-describedby={errors.avatar ? "sellerAvatar-error" : "sellerAvatar-help"} aria-invalid={Boolean(errors.avatar)} />
               </div>
-              <span className="seller-field-hint" id="sellerAvatar-help">This image is previewed locally only; it will not be uploaded.</span>
+              <span className="seller-field-hint" id="sellerAvatar-help">Image upload is not configured; this is a local preview only.</span>
               <ErrorMessage id="sellerAvatar-error">{errors.avatar}</ErrorMessage>
             </div>
             <div className="seller-field seller-field-full">
@@ -286,9 +355,13 @@ export function SellerRegistration() {
               <ErrorMessage id="sellerTerms-error">{errors.terms}</ErrorMessage>
             </div>
           </div>
-          <button className="market-button market-button-primary seller-submit-button" type="submit">Continue to profile preview <ArrowRight size={15} /></button>
+          {authError && <p className="google-oauth-error" role="alert">{authError}</p>}
+          {authMessage && <p className="seller-auth-message" role="status">{authMessage}</p>}
+          <button className="market-button market-button-primary seller-submit-button" type="submit" disabled={submitting || authLoading} aria-busy={submitting}>
+            {authLoading ? "Checking account…" : submitting ? (user ? "Saving profile…" : "Creating account…") : user ? "Save seller profile" : "Create account & continue"} <ArrowRight size={15} />
+          </button>
           <p className="seller-form-footer">Already have an account? <Link to="/seller/login">Log in</Link></p>
-          <p className="seller-no-password-note"><ShieldAlert size={13} /> This form is a local profile preview; it does not create an authenticated seller account.</p>
+          <p className="seller-no-password-note"><ShieldAlert size={13} /> Passwords are handled by Supabase. Selected files remain on this device and are not uploaded.</p>
         </form>
       </div>
     </main>
@@ -298,6 +371,7 @@ export function SellerRegistration() {
 export function SellerProfileSetup() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const sellerDraft = location.state?.sellerDraft;
   const [profile, setProfile] = useState(() => ({
     displayName: sellerDraft?.displayName || sellerDraft?.fullName || "",
@@ -316,9 +390,15 @@ export function SellerProfileSetup() {
   }));
   const [portfolioFiles, setPortfolioFiles] = useState(sellerDraft?.portfolioFiles || []);
   const [errors, setErrors] = useState({});
+  const [profileSaveError, setProfileSaveError] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const completedFields = ["displayName", "professionalTitle", "about", "skills", "experience"];
   const completion = Math.round((completedFields.filter((field) => profile[field].trim()).length / completedFields.length) * 100);
 
+  if (authLoading) {
+    return <main className="market-section seller-page seller-login-page"><p role="status">Checking your Supabase session…</p></main>;
+  }
+  if (!user) return <Navigate to="/seller/login" replace />;
   if (!sellerDraft) return <Navigate to="/seller/register" replace />;
 
   const updateProfile = (event) => {
@@ -361,7 +441,7 @@ export function SellerProfileSetup() {
     if (message) event.target.value = "";
   };
 
-  const completeProfile = (event) => {
+  const completeProfile = async (event) => {
     event.preventDefault();
     const nextErrors = {};
     if (!profile.displayName.trim()) nextErrors.displayName = "Enter a display name.";
@@ -385,20 +465,58 @@ export function SellerProfileSetup() {
       return;
     }
 
-    navigate("/seller/dashboard", {
-      state: {
-        sellerProfile: {
-          ...sellerDraft,
-          ...profile,
-          email: profile.email.trim(),
-          whatsapp: profile.whatsapp.trim(),
-          skills: profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean),
-          portfolioLinks,
-          portfolioFiles,
+    const skills = profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean);
+    const savedProfile = {
+      ...sellerDraft,
+      ...profile,
+      email: profile.email.trim(),
+      whatsapp: profile.whatsapp.trim(),
+      skills,
+      portfolioLinks,
+      portfolioFiles,
+    };
+    const sellerDetails = {
+      professionalTitle: profile.professionalTitle.trim(),
+      about: profile.about.trim(),
+      skills,
+      experience: profile.experience,
+      contactEmail: profile.email.trim(),
+      whatsapp: profile.whatsapp.trim(),
+      portfolioLinks,
+      location: profile.location.trim(),
+      languages: profile.languages.trim(),
+    };
+
+    setProfileSaving(true);
+    setProfileSaveError("");
+    try {
+      const updatedUser = await updateUserMetadata({
+        full_name: profile.displayName.trim(),
+        role: "seller",
+        username: sellerDraft.username,
+        seller_details: sellerDetails,
+      });
+      await saveUserProfile({
+        userId: updatedUser.id,
+        email: updatedUser.email || user.email,
+        fullName: profile.displayName.trim(),
+        username: sellerDraft.username,
+        role: "seller",
+        sellerDetails,
+      });
+      navigate("/seller/dashboard", {
+        state: {
+          sellerProfile: savedProfile,
+          section: sellerDraft.dashboardReturn ? "profile" : "overview",
         },
-        section: sellerDraft.dashboardReturn ? "profile" : "overview",
-      },
-    });
+      });
+    } catch (saveError) {
+      setProfileSaveError(saveError instanceof Error
+        ? saveError.message
+        : "Your seller profile could not be saved. Please try again.");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   return (
@@ -409,13 +527,13 @@ export function SellerProfileSetup() {
         title="Set up your seller profile"
         description="A clear profile helps customers understand your experience and the work you do."
       />
-      <DemoNotice>This is a local demo preview. No account has been created; profile details and selected files are not uploaded or saved to a server.</DemoNotice>
+      <DemoNotice>Profile text is saved to your Supabase profile when you complete this form. Profile pictures and portfolio files are only previewed locally and are not uploaded.</DemoNotice>
 
       <div className="seller-profile-setup-layout">
         <form className="seller-form-card seller-profile-form" onSubmit={completeProfile} noValidate>
           <div className="seller-form-card-heading">
             <span className="seller-form-step-number">02</span>
-            <div><h2>Professional profile</h2><p>Fields marked <span>*</span> are needed for this preview.</p></div>
+            <div><h2>Professional profile</h2><p>Fields marked <span>*</span> are required to save your profile.</p></div>
           </div>
           <div className="seller-profile-completion">
             <div className="seller-profile-completion-top"><span>Profile completion</span><strong>{completion}%</strong></div>
@@ -425,7 +543,7 @@ export function SellerProfileSetup() {
 
           <div className="seller-profile-photo-row">
             <span className="seller-profile-photo">{profile.avatar ? <img src={profile.avatar} alt="Seller profile preview" /> : <UserRound size={24} />}</span>
-            <div><strong>Profile picture</strong><p>JPG, PNG or WebP · Up to 5 MB · Not uploaded in demo</p>
+            <div><strong>Profile picture</strong><p>JPG, PNG or WebP · Up to 5 MB · Local preview only</p>
               <label className="seller-upload-button" htmlFor="sellerProfilePhoto">Change picture</label>
               <input className="seller-visually-hidden" id="sellerProfilePhoto" type="file" accept="image/jpeg,image/png,image/webp" onChange={updateProfilePicture} aria-invalid={Boolean(errors.avatar)} aria-describedby={errors.avatar ? "profile-avatar-error" : undefined} />
               <ErrorMessage id="profile-avatar-error">{errors.avatar}</ErrorMessage>
@@ -499,8 +617,11 @@ export function SellerProfileSetup() {
           </div>
           <div className="seller-profile-form-actions">
             <Link className="market-button market-button-outline" to="/seller/register" state={{ sellerDraft }}>Back</Link>
-            <button className="market-button market-button-primary" type="submit">Complete Profile <ArrowRight size={15} /></button>
+            <button className="market-button market-button-primary" type="submit" disabled={profileSaving} aria-busy={profileSaving}>
+              {profileSaving ? "Saving profile…" : "Save Profile"} <ArrowRight size={15} />
+            </button>
           </div>
+          {profileSaveError && <p className="google-oauth-error" role="alert">{profileSaveError}</p>}
         </form>
 
         <aside className="seller-profile-preview">
@@ -525,7 +646,13 @@ export function SellerProfileSetup() {
 export function SellerDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const sellerProfile = location.state?.sellerProfile;
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id;
+  const userEmail = user?.email;
+  const sessionSellerProfile = location.state?.sellerProfile;
+  const [sellerProfile, setSellerProfile] = useState(sessionSellerProfile || null);
+  const [profileLoading, setProfileLoading] = useState(!sessionSellerProfile);
+  const [profileLoadError, setProfileLoadError] = useState("");
   const { getOwnedServices, deleteSellerService } = useMarketplace();
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [deleteNotice, setDeleteNotice] = useState("");
@@ -534,6 +661,82 @@ export function SellerDashboard() {
   );
   const [preferences, setPreferences] = useState({ orderUpdates: true, marketplaceUpdates: false });
 
+  useEffect(() => {
+    let active = true;
+    if (sessionSellerProfile) {
+      setSellerProfile(sessionSellerProfile);
+      setProfileLoadError("");
+      setProfileLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+    if (authLoading) return () => {
+      active = false;
+    };
+    if (!userId) {
+      setSellerProfile(null);
+      setProfileLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setProfileLoading(true);
+    setProfileLoadError("");
+    getUserProfile(userId)
+      .then((profile) => {
+        if (!active) return;
+        if (!profile || profile.role !== "seller") {
+          setSellerProfile(null);
+          return;
+        }
+        const details = profile.seller_details || {};
+        setSellerProfile({
+          fullName: profile.full_name,
+          displayName: profile.full_name,
+          username: profile.username || "",
+          email: profile.email || userEmail || "",
+          about: details.about || "",
+          professionalTitle: details.professionalTitle || "",
+          skills: Array.isArray(details.skills) ? details.skills : [],
+          experience: details.experience || "",
+          portfolioUrl: details.portfolioUrl || "",
+          whatsapp: details.whatsapp || "",
+          portfolioLinks: Array.isArray(details.portfolioLinks) ? details.portfolioLinks : [],
+          location: details.location || "",
+          languages: details.languages || "",
+          avatar: "",
+        });
+      })
+      .catch((loadError) => {
+        if (active) {
+          setProfileLoadError(loadError instanceof Error
+            ? loadError.message
+            : "Your Supabase seller profile could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, sessionSellerProfile, userEmail, userId]);
+
+  if (authLoading || profileLoading) {
+    return <main className="market-section seller-login-page" role="status">Loading your Supabase seller profile…</main>;
+  }
+  if (!user) return <Navigate to="/seller/login" replace />;
+  if (profileLoadError) {
+    return (
+      <main className="market-section seller-page seller-login-page">
+        <p className="google-oauth-error" role="alert">{profileLoadError}</p>
+        <Link className="market-button market-button-outline" to="/seller/register">Return to seller profile</Link>
+      </main>
+    );
+  }
   if (!sellerProfile) return <Navigate to="/seller/register" replace />;
 
   const ownedServices = getOwnedServices(sellerProfile.username);
@@ -551,7 +754,7 @@ export function SellerDashboard() {
     { key: "reviews", label: "Reviews", Icon: Star },
     { key: "profile", label: "Edit Profile", Icon: UserRound },
     { key: "settings", label: "Account Settings", Icon: Settings },
-    { key: "logout", label: "Logout", Icon: LogOut, onClick: () => navigate("/") },
+    { key: "logout", label: "Logout", Icon: LogOut },
   ];
 
   const selectSection = (section) => {
@@ -702,7 +905,7 @@ export function SellerDashboard() {
   const profileSection = (
     <section className="dashboard-panel">
       <div className="dashboard-section-heading">
-        <div><span className="market-eyebrow">SELLER PROFILE PREVIEW</span><h2>Edit profile</h2><p>Your updated seller information is available in this browser session.</p></div>
+        <div><span className="market-eyebrow">SELLER PROFILE</span><h2>Edit profile</h2><p>Your text details are saved to Supabase. Seller listings and uploaded files are not connected yet.</p></div>
         <button className="market-button market-button-primary" type="button" onClick={() => selectSection("profile")}><Pencil size={14} /> Edit profile</button>
       </div>
       <div className="dashboard-profile-summary">
@@ -751,20 +954,59 @@ export function SellerDashboard() {
 
 export function SellerLogin() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+
+  const handleEmailLogin = async (event) => {
+    event.preventDefault();
+    if (emailSubmitting) return;
+    setEmailSubmitting(true);
+    setEmailError("");
+
+    try {
+      await signInWithEmail({ email, password });
+      navigate("/", { replace: true });
+    } catch (loginError) {
+      const message = loginError instanceof Error ? loginError.message : "";
+      setEmailError(loginError?.code === "email_not_confirmed" || message === "Email not confirmed"
+        ? "Please confirm your email address using the link we sent before signing in."
+        : message || "Email sign-in failed. Check your credentials and try again.");
+    } finally {
+      setEmailSubmitting(false);
+    }
+  };
 
   return (
     <main className="market-section seller-page seller-login-page">
       <div className="seller-login-card">
         <span className="seller-login-icon"><ShieldAlert size={22} /></span>
         <span className="market-eyebrow">SELLER ACCOUNT ACCESS</span>
-        <h1>Log in or sign up with Google</h1>
-        <p>Continue with Google to authenticate your TechStudio account using Supabase.</p>
+        <h1>Log in to NexTech</h1>
+        <p>Sign in with your email and password or continue securely with Google.</p>
         <GoogleOAuthButton initialError={location.state?.authError || ""} />
+        <div className="google-oauth-divider"><span>OR SIGN IN WITH EMAIL</span></div>
+        <form className="seller-login-form" onSubmit={handleEmailLogin}>
+          <div className="seller-field">
+            <label htmlFor="loginEmail">Email address</label>
+            <input id="loginEmail" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </div>
+          <div className="seller-field">
+            <label htmlFor="loginPassword">Password</label>
+            <input id="loginPassword" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          </div>
+          {emailError && <p className="google-oauth-error" role="alert">{emailError}</p>}
+          <button className="market-button market-button-primary seller-submit-button" type="submit" disabled={emailSubmitting} aria-busy={emailSubmitting}>
+            {emailSubmitting ? "Signing in…" : "Log in"}
+          </button>
+        </form>
         <div className="seller-login-actions">
-          <Link className="market-button market-button-primary" to="/seller/register">Preview seller registration <ArrowRight size={15} /></Link>
+          <Link className="market-button market-button-outline" to="/seller/register">Create a seller account <ArrowRight size={15} /></Link>
           <Link className="market-button market-button-outline" to="/seller">Back to Become a Seller</Link>
         </div>
-        <a className="seller-login-contact" href="mailto:hello@techstudio.pk?subject=TechStudio%20seller%20account%20access">Contact TechStudio support</a>
+        <a className="seller-login-contact" href="mailto:hello@techstudio.pk?subject=NexTech%20seller%20account%20access">Contact NexTech support</a>
       </div>
     </main>
   );

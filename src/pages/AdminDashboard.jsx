@@ -84,7 +84,7 @@ function AdminDashboard() {
   })));
   const [categoryForm, setCategoryForm] = useState({ id: "", name: "", description: "", icon: "" });
   const [settings, setSettings] = useState({
-    name: "TechStudio",
+    name: "NexTech",
     description: "",
     contactEmail: "",
     supportEmail: "",
@@ -195,9 +195,9 @@ function AdminDashboard() {
   return (
     <main className="admin-shell">
       <aside className={`admin-sidebar${sidebarOpen ? " open" : ""}`}>
-        <Link className="admin-brand" to="/" aria-label="TechStudio home">
+        <Link className="admin-brand" to="/" aria-label="NexTech home">
           <span className="brand-mark"><span /></span>
-          <span>techstudio<span className="brand-period">.</span></span>
+          <span>NexTech<span className="brand-period">.</span></span>
         </Link>
         <div className="admin-side-label">WORKSPACE</div>
         <nav className="admin-navigation" aria-label="Admin dashboard navigation">
@@ -261,7 +261,7 @@ function AdminDashboard() {
         <section className="admin-main">
           <div className="admin-heading-row">
             <div>
-              <span className="market-eyebrow">TECHSTUDIO · ADMIN WORKSPACE</span>
+              <span className="market-eyebrow">NEXTECH · ADMIN WORKSPACE</span>
               <h1>{activeSection === "overview" ? "Platform overview" : activeItem.label}</h1>
               <p>Manage your marketplace preview and review platform activity.</p>
             </div>

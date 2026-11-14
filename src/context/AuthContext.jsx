@@ -13,21 +13,45 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    let receivedAuthEvent = false;
     let subscription;
 
     try {
-      const { data } = getSupabaseClient().auth.onAuthStateChange((_event, nextSession) => {
+      const supabase = getSupabaseClient();
+      const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        receivedAuthEvent = true;
+        if (!active) return;
         setSession(nextSession);
         setLoading(false);
         setError(null);
       });
       subscription = data.subscription;
+
+      supabase.auth.getSession()
+        .then(({ data: sessionData, error: sessionError }) => {
+          if (sessionError) throw sessionError;
+          if (!active || receivedAuthEvent) return;
+          setSession(sessionData.session);
+          setLoading(false);
+          setError(null);
+        })
+        .catch((authError) => {
+          if (!active || receivedAuthEvent) return;
+          setError(authError instanceof Error
+            ? authError
+            : new Error("Supabase authentication could not be restored."));
+          setLoading(false);
+        });
     } catch (authError) {
       setError(authError instanceof Error ? authError : new Error("Supabase authentication could not be initialized."));
       setLoading(false);
     }
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      active = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   return (

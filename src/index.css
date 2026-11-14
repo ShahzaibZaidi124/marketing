@@ -1,34 +1,35 @@
 :root {
   font-family: "Inter", sans-serif;
-  color: #eeedf5;
-  background: #080D1A;
+  color: #111827;
+  background: #F8FAFF;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
-  --bg: #080D1A;
-  --surface: #111A2E;
-  --surface-2: #111A2E;
-  --line: rgba(224, 225, 251, .095);
-  --text: #f5f7ff;
-  --muted: #9aa8c2;
-  --dim: #69758e;
+  --bg: #F8FAFF;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F9;
+  --line: #E5E7EB;
+  --text: #111827;
+  --muted: #64748B;
+  --dim: #94A3B8;
   --violet: #8B5CF6;
   --blue: #2563EB;
+  --bright-blue: #38BDF8;
   --max-width: 1160px;
 }
 
 * { box-sizing: border-box; }
 html { min-width: 320px; scroll-behavior: smooth; scroll-padding-top: 85px; }
 body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text); }
-body::after { position: fixed; inset: 0; z-index: 20; pointer-events: none; content: ""; opacity: .115; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E"); }
+body::after { position: fixed; inset: 0; z-index: 20; pointer-events: none; content: ""; opacity: .025; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E"); }
 button, input, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
 a { color: inherit; text-decoration: none; }
-::selection { color: white; background: #5546b3; }
-:focus-visible { outline: 2px solid #a491ff; outline-offset: 4px; }
+::selection { color: #111827; background: #BAE6FD; }
+:focus-visible { outline: 2px solid #2563EB; outline-offset: 4px; }
 
 .announcement { height: 33px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #c8c6d3; background: #10111a; border-bottom: 1px solid rgba(255,255,255,.045); font-size: 10px; letter-spacing: .015em; }
 .announcement-sparkle { color: #b6a7ff; font-size: 13px; }
@@ -451,13 +452,14 @@ a { color: inherit; text-decoration: none; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* TechStudio developer marketplace homepage */
+/* NexTech developer marketplace homepage */
 .site-header { background: rgba(8,13,26,.88); border-bottom-color: rgba(148,163,184,.12); }
 .brand { font-family: "Poppins", sans-serif; letter-spacing: -.055em; }
 .main-nav { gap: clamp(14px,2vw,27px); }
 .nav-link, .nav-login { color: #a7b2c8; font-size: 12px; transition: color .2s ease; }
 .nav-link:hover, .nav-link-active, .nav-login:hover { color: #fff; }
-.nav-login { white-space: nowrap; }
+.nav-login { padding: 0; border: 0; background: transparent; font: inherit; white-space: nowrap; cursor: pointer; }
+.nav-login:disabled { opacity: .65; cursor: wait; }
 .nav-account { max-width: 180px; overflow: hidden; color: #cbd5e1; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .nav-auth-loading { color: #94a3b8; font-size: 10px; white-space: nowrap; }
 .nav-logout { padding: 0; border: 0; background: transparent; font: inherit; cursor: pointer; }
@@ -1442,6 +1444,8 @@ a { color: inherit; text-decoration: none; }
 .seller-login-card h1 { margin: 10px 0 8px; color: #f3f6ff; font: 500 clamp(23px,3.8vw,31px)/1.25 "Poppins",sans-serif; }
 .seller-login-card > p { max-width: 460px; margin: 0 auto; color: #98a7be; font-size: 10px; line-height: 1.8; }
 .seller-login-card > .seller-demo-notice { text-align: left; }
+.seller-login-form { margin-top: 17px; display: grid; gap: 12px; text-align: left; }
+.seller-auth-message { margin: 12px 0; color: #a7d8b8; font-size: 9px; line-height: 1.6; }
 .google-oauth-section { width: 100%; }
 .google-oauth-button { width: 100%; min-height: 44px; padding: 0 15px; border: 1px solid #33425e; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 11px; color: #f8fbff; background: #111a2e; font: 500 12px "Inter",sans-serif; cursor: pointer; transition: border-color .2s,background .2s,transform .2s,opacity .2s; }
 .google-oauth-button:hover:not(:disabled) { transform: translateY(-1px); border-color: #2563eb; background: #162440; }
@@ -1692,7 +1696,9 @@ a { color: inherit; text-decoration: none; }
 .dashboard-nav-item.active > svg:first-child { color: #a6baff; }
 .dashboard-nav-item:last-child { margin-top: 7px; border-top-color: #8da1bf20; border-radius: 0 0 7px 7px; color: #d39a9a; }
 .dashboard-nav-item:last-child > svg:first-child { color: #d39a9a; }
+.dashboard-nav-item:disabled { opacity: .65; cursor: wait; }
 .dashboard-sidebar-note { margin: 11px 4px 0; color: #6f7e95; font-size: 7px; line-height: 1.6; }
+.dashboard-signout-error { margin: 9px 4px 0; color: #fca5a5; font-size: 8px; line-height: 1.5; }
 .dashboard-main { min-width: 0; display: grid; align-content: start; gap: 13px; }
 .dashboard-stat-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
 .dashboard-stat-card { min-width: 0; min-height: 137px; padding: 13px; border: 1px solid #879bbd2b; border-radius: 10px; background: #111a2e; box-shadow: 0 9px 23px #0002; }
@@ -1979,4 +1985,649 @@ a { color: inherit; text-decoration: none; }
   .admin-form-actions { grid-column: auto; }
   .admin-category-row { gap: 6px; }
   .admin-category-row button { min-width: 27px; padding: 0 5px; }
+}
+
+/* NexTech white glow theme */
+html, body, #root { min-height: 100%; }
+body { color: #111827; background: #F8FAFF; font-family: "Inter", sans-serif; }
+body::after { opacity: .025; }
+button, input, textarea, select { font-family: "Inter", sans-serif; }
+
+.site-header, .mobile-nav, .nav-dropdown {
+  color: #111827;
+  background: rgba(255,255,255,.94);
+  border-color: #E5E7EB;
+  box-shadow: 0 8px 26px rgba(37,99,235,.07);
+  backdrop-filter: blur(16px);
+}
+.main-nav { color: #111827; }
+.brand, .brand-name, .nav-link, .nav-account, .nav-login, .menu-toggle { color: #111827; }
+.brand-mark { color: #fff; background: linear-gradient(135deg,#2563EB,#38BDF8 58%,#8B5CF6); box-shadow: 0 5px 16px rgba(37,99,235,.25); }
+.brand-period { color: #2563EB; }
+.nav-link:hover, .nav-link.active, .nav-link-active, .nav-dropdown a:hover { color: #2563EB; }
+.nav-login, .nav-account, .menu-toggle { border-color: #E5E7EB; background: #fff; }
+.nav-login:hover, .nav-account:hover, .menu-toggle:hover { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.nav-dropdown a { color: #475569; }
+.nav-dropdown a:hover { background: #EFF6FF; }
+.announcement { color: #475569; background: #EFF6FF; border-color: #DBEAFE; }
+.announcement-sparkle { color: #8B5CF6; }
+.announcement a, .announcement a:hover { color: #2563EB; }
+.site-footer { color: #64748B; background: #fff; border-color: #E5E7EB; }
+.site-footer h2, .site-footer h3, .site-footer strong { color: #111827; }
+.site-footer a { color: #64748B; }
+.site-footer a:hover { color: #2563EB; }
+
+.market-home, .explore-page, .messages-page, .seller-page, .dashboard-page, .admin-page,
+.service-detail-page, .service-order-page, .templates-page, .info-page {
+  color: #111827;
+  background-color: #F8FAFF;
+}
+.market-hero, .hero, .page-hero, .explore-page-intro, .seller-page-hero, .service-detail-hero {
+  color: #111827;
+  background-color: #F8FAFF;
+  background-image:
+    radial-gradient(ellipse at 16% 12%, rgba(56,189,248,.13), transparent 38%),
+    radial-gradient(ellipse at 84% 20%, rgba(139,92,246,.11), transparent 34%),
+    linear-gradient(180deg,#fff 0%,#F8FAFF 100%);
+  border-color: #E5E7EB;
+}
+.market-hero h1, .hero h1, .page-hero h1, .explore-page-intro h1, .service-detail-hero h1 { color: #111827; }
+.market-hero h1 span {
+  color: #2563EB;
+  background: linear-gradient(100deg,#2563EB 1%,#8B5CF6 52%,#0EA5E9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.market-hero p, .hero p, .page-hero p, .explore-page-intro p { color: #64748B; }
+.market-hero .market-eyebrow, .hero .eyebrow, .page-hero .eyebrow, .explore-page-intro .eyebrow {
+  color: #2563EB;
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+.market-hero-orb, .hero-orb { opacity: .22; }
+.market-hero .hero-float-card, .hero .hero-float-card, .hero-preview-card, .market-hero-preview {
+  color: #111827;
+  border-color: #E5E7EB;
+  background-color: #fff;
+  box-shadow: 0 18px 50px rgba(37,99,235,.13);
+}
+.hero-preview-caption, .hero-preview-label, .hero-preview-meta { color: #475569; }
+.market-section, .categories-section, .featured-section, .how-section, .market-categories,
+.market-featured, .market-how, .info-section, .manifesto-section, .services-strip, .about-values {
+  color: #111827;
+  background-color: transparent;
+}
+.market-section-heading h2, .section-heading h2, .section-heading-row h2,
+.market-section h2, .manifesto-section h2, .services-strip h2, .about-values h2 { color: #111827; }
+.market-section-heading p, .section-heading p, .section-heading-row p,
+.market-section p, .manifesto-section p, .services-strip p, .about-values p { color: #64748B; }
+.market-eyebrow, .eyebrow, .section-eyebrow, .market-kicker { color: #2563EB; }
+
+main :is(h1,h2,h3,h4) {
+  color: #111827 !important;
+  font-family: "Poppins", sans-serif !important;
+}
+main h1 span {
+  color: #2563EB;
+  background-image: linear-gradient(100deg,#2563EB 0%,#8B5CF6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+main p:not(.google-oauth-error):not(.form-error):not(.messages-error):not(.service-order-error):not(.seller-field-error):not(.seller-auth-message):not(.dashboard-signout-error):not(.admin-form-error) {
+  color: #64748B !important;
+}
+main label { color: #334155 !important; }
+main small, main figcaption { color: #64748B !important; }
+main [class*="error"] { color: #B91C1C; }
+main [class*="success"] { color: #15803D; }
+main a:not(.button):not([class*="button"]):not(.nav-link) { color: #2563EB; }
+main a:not(.button):not([class*="button"]):not(.nav-link):hover { color: #1D4ED8; }
+
+main [class*="card"], main [class*="panel"] {
+  color: #111827;
+  border-color: #E5E7EB;
+  background-color: #fff;
+  background-image: none;
+  box-shadow: 0 10px 30px rgba(15,23,42,.055);
+}
+.category-card, .service-card, .template-card, .offering-card, .includes-card,
+.how-step, .manifesto-card, .value-card, .contact-form, .contact-success,
+.order-summary, .service-order-card, .seller-form-card, .seller-auth-card {
+  color: #111827;
+  border-color: #E5E7EB;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15,23,42,.055);
+}
+.category-card:hover, .service-card:hover, .template-card:hover, .offering-card:hover,
+.how-step:hover, .value-card:hover { border-color: #BFDBFE; box-shadow: 0 18px 40px rgba(37,99,235,.11); }
+.category-card h3, .service-card h3, .template-card h3, .offering-card h3,
+.includes-card h3, .how-step h3, .manifesto-card h3, .value-card h3 { color: #111827; }
+.category-card p, .service-card p, .template-card p, .offering-card p,
+.includes-card p, .how-step p, .manifesto-card p, .value-card p { color: #64748B; }
+.service-card-meta, .service-card-rating, .template-card-meta, .category-card-count { color: #64748B; }
+.service-card-badge, .category-card-icon { color: #2563EB; background: #EFF6FF; }
+
+.market-button-primary, .button-primary, .button-main, .hero-primary-button,
+.seller-submit-button, .service-order-submit, .messages-send-button, .admin-primary-button {
+  color: #fff !important;
+  border-color: transparent !important;
+  background: linear-gradient(110deg,#2563EB 0%,#38BDF8 58%,#8B5CF6 100%) !important;
+  box-shadow: 0 9px 24px rgba(37,99,235,.22);
+}
+.market-button-primary:hover, .button-primary:hover, .button-main:hover, .hero-primary-button:hover,
+.seller-submit-button:hover, .service-order-submit:hover, .messages-send-button:hover, .admin-primary-button:hover {
+  filter: brightness(1.04);
+  box-shadow: 0 12px 30px rgba(37,99,235,.3);
+}
+.market-button-outline, .button-outline, .button-secondary, .hero-secondary-button,
+.seller-cancel-button, .service-order-cancel, .admin-secondary-button {
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+  background: #fff;
+}
+.market-button-outline:hover, .button-outline:hover, .button-secondary:hover,
+.hero-secondary-button:hover, .seller-cancel-button:hover, .admin-secondary-button:hover {
+  color: #1D4ED8;
+  border-color: #93C5FD;
+  background: #EFF6FF;
+}
+
+.seller-banner, .market-seller-banner, .detail-bottom-cta, .info-cta {
+  color: #111827;
+  border-color: #DBEAFE;
+  background:
+    radial-gradient(ellipse at 82% 18%,rgba(139,92,246,.12),transparent 36%),
+    linear-gradient(115deg,#EFF6FF,#fff 58%,#F5F3FF);
+  box-shadow: 0 16px 38px rgba(37,99,235,.08);
+}
+.seller-banner h2, .market-seller-banner h2, .detail-bottom-cta h2, .info-cta h2 { color: #111827; }
+.seller-banner p, .market-seller-banner p, .detail-bottom-cta p, .info-cta p { color: #64748B; }
+.seller-intro-hero {
+  color: #111827;
+  border-color: #DBEAFE;
+  background:
+    radial-gradient(ellipse at 14% 20%,rgba(37,99,235,.08),transparent 42%),
+    radial-gradient(ellipse at 88% 78%,rgba(139,92,246,.08),transparent 38%),
+    linear-gradient(140deg,#fff,#F8FAFF 70%,#F5F3FF);
+  box-shadow: 0 18px 45px rgba(37,99,235,.08);
+}
+.seller-intro-copy h1 > span { background-image: linear-gradient(100deg,#2563EB,#8B5CF6); }
+.seller-intro-login, .seller-intro-login a, .seller-form-footer, .seller-form-footer a { color: #475569; }
+.seller-intro-art-card-back { color: #6D28D9; }
+.seller-intro-art-avatar { color: #fff; background: linear-gradient(145deg,#2563EB,#8B5CF6); }
+.seller-intro-art-card-front small, .seller-intro-art-card-front > svg { color: #64748B; }
+.seller-benefit-icon, .seller-form-aside-icon {
+  color: #2563EB;
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+.seller-benefit-icon-2 { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+.seller-benefit-icon-3 { color: #0284C7; border-color: #BAE6FD; background: #F0F9FF; }
+.seller-intro-bottom-cta {
+  color: #111827;
+  border-color: #DBEAFE;
+  background: linear-gradient(105deg,#EFF6FF,#fff 60%,#F5F3FF);
+}
+.seller-intro-bottom-cta p, .seller-form-aside-step { color: #64748B; }
+.seller-form-aside-icon, .seller-login-icon {
+  color: #2563EB;
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+.seller-form-step-number { color: #6D28D9; border-color: #DDD6FE; background: #F5F3FF; }
+.seller-form-card-heading p span, .seller-field > label > span:not(.seller-optional) { color: #6D28D9; }
+.seller-field select option { color: #111827; background: #fff; }
+.seller-field-hint, .seller-optional, .seller-no-password-note { color: #64748B; }
+.seller-profile-completion { border-color: #E5E7EB; background: #F8FAFF; }
+.seller-profile-completion-top, .seller-profile-completion > small { color: #64748B; }
+.seller-profile-completion-top strong { color: #6D28D9; }
+.seller-profile-progress { background: #E5E7EB; }
+.seller-profile-photo-row strong { color: #111827; }
+.seller-profile-photo-row p { color: #64748B; }
+.seller-upload-button { color: #2563EB !important; }
+.seller-uploaded-file-list li { color: #475569; }
+.seller-profile-preview { background-image: none; }
+.seller-profile-preview-location, .seller-profile-preview-experience { color: #64748B; }
+.seller-profile-skill-list > span { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.seller-dashboard-profile-label, .seller-dashboard-completion { color: #64748B; }
+.seller-dashboard-completion > strong { color: #6D28D9; }
+.seller-dashboard-completion-track { background: #E5E7EB; }
+.seller-dashboard-card-top > span { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+.seller-dashboard-card-top > strong { color: #111827; }
+.seller-dashboard-text-button, .seller-dashboard-footer-link a { color: #2563EB; }
+.seller-dashboard-action-notice { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.seller-auth-message { color: #15803D; }
+.service-breadcrumb { color: #64748B; }
+.service-breadcrumb span[aria-current="page"] { color: #334155; }
+.service-breadcrumb a:hover { color: #2563EB; }
+.service-detail-lists { color: #334155; border-color: #E5E7EB; background: #fff; }
+.service-detail-lists h3 { color: #111827; }
+.service-included-list li, .service-responsive-note { color: #475569; }
+.service-included-list svg, .service-responsive-note svg { color: #2563EB; }
+.service-tech-list > span { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.service-tech-list svg { color: #2563EB; }
+.seller-profile-label, .seller-portfolio-card > div > span { color: #2563EB; }
+.seller-profile-skills { border-color: #E5E7EB; }
+.seller-profile-skills h4 { color: #111827; }
+.seller-profile-skills > div > span { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.seller-contact-note, .seller-portfolio-heading > span { color: #64748B; }
+.service-package {
+  color: #334155;
+  border-color: #E5E7EB;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15,23,42,.055);
+}
+.service-package:hover { border-color: #93C5FD; box-shadow: 0 12px 30px rgba(37,99,235,.1); }
+.service-package-selected { color: #1D4ED8; border-color: #93C5FD; background: linear-gradient(145deg,#EFF6FF,#F5F3FF); }
+.service-package-top strong, .service-package-price { color: #111827; }
+.service-package-top small, .service-package-summary, .service-package-delivery,
+.service-package-features > span { color: #64748B; }
+.service-package-radio { border-color: #94A3B8; }
+.service-package-selected .service-package-radio { border-color: #2563EB; }
+.service-package-selected .service-package-radio > span { background: #2563EB; }
+.service-package-divider, .selected-package-summary { border-color: #E5E7EB; }
+.service-package-delivery svg, .service-package-features svg { color: #2563EB; }
+.service-package-action { color: #475569; border-color: #CBD5E1; }
+.service-package-selected .service-package-action { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.selected-package-summary { background: #fff; }
+.selected-package-summary > span { color: #64748B; }
+.selected-package-summary strong { color: #111827; }
+.service-faq-list, .service-faq-item { border-color: #E5E7EB; }
+.service-faq-item summary { color: #334155; }
+.service-faq-item summary > span { color: #2563EB; }
+.service-faq-item > p { color: #64748B; }
+.service-order-step { color: #6D28D9; border-color: #DDD6FE; background: #F5F3FF; }
+.service-order-listing-copy > span, .service-order-review-service > div > span { color: #64748B; }
+.service-order-listing-price, .service-order-listing-footer > span { color: #475569; }
+.service-order-listing-footer { border-color: #E5E7EB; }
+.service-order-listing-footer > a { color: #2563EB; }
+.service-order-optional { color: #64748B; }
+.service-order-field > label > span:not(.service-order-optional) { color: #6D28D9; }
+.service-order-checkbox { color: #334155; border-color: #E5E7EB; background: #F8FAFF; }
+.service-order-checkbox:hover { border-color: #93C5FD; background: #EFF6FF; }
+.service-order-checkmark { border-color: #94A3B8; background: #fff; }
+.service-order-file-control { border-color: #CBD5E1; background: #F8FAFF; }
+.service-order-file-control input, .service-order-file-selected { color: #475569; }
+.service-order-file-control input::file-selector-button {
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+.service-order-file-control > span { color: #64748B; }
+.service-order-file-selected > svg { color: #2563EB; }
+.service-order-file-selected button { color: #475569; }
+.service-order-file-selected button:hover { color: #1D4ED8; background: #EFF6FF; }
+.service-order-review-title { color: #6D28D9; }
+.service-order-review-service > div > strong { color: #111827; }
+.service-order-review-row { border-color: #E5E7EB; }
+.service-order-review-row dt, .service-order-review-total > span { color: #64748B; }
+.service-order-review-row dd, .service-order-review-card > h3 { color: #334155; }
+.service-order-review-row dd .service-order-empty { color: #94A3B8; }
+.service-order-review-divider, .service-order-review-total { border-color: #E5E7EB; }
+.service-order-review-total > strong { color: #111827; }
+.service-order-review-demo { color: #64748B; }
+.service-order-review-demo > svg { color: #2563EB; }
+.service-order-demo-notice { color: #854D0E; border-color: #FDE68A; background: #FFFBEB; }
+.service-order-demo-notice span { color: #92400E; }
+.service-order-submit-area > p { color: #64748B; }
+.seller-banner-art {
+  color: #475569;
+  border-color: #DBEAFE;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(37,99,235,.11);
+}
+.seller-code-line, .seller-code-line:nth-child(2) { color: #475569; }
+.seller-code-cursor { background: #2563EB; }
+.seller-banner-art > svg { color: #93C5FD; }
+.seller-profile-card {
+  color: #111827;
+  border-color: #E5E7EB;
+  background: linear-gradient(140deg,#fff,#F8FAFF) !important;
+  box-shadow: 0 10px 30px rgba(15,23,42,.055);
+}
+
+.template-art, .demo-template-preview, .demo-content, .demo-browser-content {
+  color: #111827;
+  border-color: #E5E7EB;
+  background-color: #F8FAFF;
+}
+.template-art {
+  background-image: linear-gradient(145deg,#EFF6FF,#fff 52%,#F5F3FF);
+}
+.template-art :is(h1,h2,h3,p,span), .demo-template-preview :is(h1,h2,h3,p,span),
+.demo-content :is(h1,h2,h3,p,span), .demo-browser-content :is(h1,h2,h3,p,span) { color: #334155; }
+.template-art .template-art-accent, .demo-template-preview .template-art-accent { color: #2563EB; }
+.template-art .template-art-button, .demo-template-preview .template-art-button { color: #fff; background: #2563EB; }
+.demo-browser, .demo-browser-bar { color: #475569; border-color: #E5E7EB; background: #fff; }
+
+.explore-filters, .explore-toolbar, .explore-sort, .service-detail-sidebar,
+.service-detail-content, .order-form, .order-summary, .seller-dashboard-sidebar,
+.dashboard-sidebar, .dashboard-main, .dashboard-panel, .messages-layout,
+.messages-inbox, .messages-chat, .messages-composer, .messages-conversation-list,
+.messages-conversation, .admin-shell, .admin-topbar, .admin-sidebar, .admin-main,
+.seller-settings-panel, .seller-profile-preview, .seller-service-section {
+  color: #111827;
+  border-color: #E5E7EB;
+  background-color: #fff;
+}
+.explore-filter-title, .explore-sort-label, .service-detail-title, .service-detail-sidebar h2,
+.seller-dashboard-title, .dashboard-heading, .messages-title, .admin-heading-row h1,
+.admin-sidebar-title { color: #111827; }
+.explore-filter-option, .explore-results-count, .service-detail-meta, .service-detail-description,
+.dashboard-sidebar a, .dashboard-sidebar button, .messages-conversation-preview,
+.messages-empty-state, .admin-nav-item, .admin-profile-copy small { color: #64748B; }
+.dashboard-sidebar a.active, .dashboard-sidebar a:hover, .admin-nav-item.active,
+.admin-nav-item:hover { color: #2563EB; background: #EFF6FF; }
+.dashboard-demo-banner { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.dashboard-demo-banner strong { color: #1E40AF; }
+.dashboard-heading-profile strong, .dashboard-sidebar-profile strong,
+.dashboard-recent-row strong, .dashboard-seller-profile-card h2,
+.dashboard-service-copy h3, .dashboard-settings-list strong,
+.dashboard-profile-summary > strong, .dashboard-payment-empty strong { color: #111827; }
+.dashboard-heading-profile small, .dashboard-sidebar-profile small, .dashboard-sidebar-note,
+.dashboard-stat-card > small, .dashboard-section-heading p, .dashboard-empty-state p,
+.dashboard-recent-row small, .dashboard-seller-profile-card p, .dashboard-service-copy p,
+.dashboard-settings-list small, .dashboard-inline-note, .dashboard-profile-summary > p,
+.dashboard-payment-empty p { color: #64748B; }
+.dashboard-sidebar-profile { border-color: #E5E7EB; }
+.dashboard-nav-item { color: #475569; }
+.dashboard-nav-item > svg:first-child { color: #64748B; }
+.dashboard-nav-item > small { color: #1D4ED8; background: #EFF6FF; }
+.dashboard-nav-item:hover { color: #1D4ED8; background: #F1F5F9; }
+.dashboard-nav-item.active { color: #1D4ED8; border-color: #BFDBFE; background: linear-gradient(90deg,#EFF6FF,#F5F3FF); box-shadow: inset 2px 0 #2563EB; }
+.dashboard-nav-item.active > svg:first-child { color: #2563EB; }
+.dashboard-nav-item:last-child { color: #B91C1C; border-color: #E5E7EB; }
+.dashboard-nav-item:last-child > svg:first-child { color: #B91C1C; }
+.dashboard-stat-card > span { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+.dashboard-panel { background-image: none; }
+.dashboard-section-heading h2 { color: #111827; }
+.dashboard-text-link, .dashboard-recent-row > svg,
+.dashboard-service-actions a { color: #2563EB; }
+.dashboard-empty-state, .dashboard-payment-empty {
+  color: #334155;
+  border-color: #CBD5E1;
+  background: #F8FAFF;
+}
+.dashboard-empty-state > span, .dashboard-payment-empty > span,
+.dashboard-recent-icon { color: #2563EB; border-color: #BFDBFE; background: #EFF6FF; }
+.dashboard-empty-state h3 { color: #111827; }
+.dashboard-recent-row { color: #334155; border-color: #E5E7EB; background: #fff; }
+.dashboard-recent-row strong { color: #111827; }
+.dashboard-seller-profile-card { background-image: none; }
+.dashboard-order-filters button { color: #475569; border-color: #E5E7EB; background: #fff; }
+.dashboard-order-filters button.active { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.dashboard-service-image { background: #EFF6FF; }
+.dashboard-service-copy > span { color: #6D28D9; }
+.dashboard-service-copy > strong { color: #111827; }
+.dashboard-service-actions button { color: #B91C1C; }
+.dashboard-avatar-editor label, .dashboard-form-grid label { color: #334155; }
+.dashboard-avatar-editor label small { color: #64748B; }
+.dashboard-settings-list label { border-color: #E5E7EB; }
+.dashboard-profile-summary { border-color: #E5E7EB; background: #fff; }
+.dashboard-profile-summary > span { color: #6D28D9; }
+.dashboard-profile-summary > div:not(.seller-profile-skill-list), .dashboard-profile-summary ul { color: #475569; }
+.messages-incoming, .messages-bubble-incoming { color: #334155; border-color: #E5E7EB; background: #F1F5F9; }
+.messages-outgoing, .messages-bubble-outgoing { color: #fff; border-color: transparent; background: #2563EB; }
+.messages-chat { background-image: linear-gradient(180deg,#fff,#F8FAFF); }
+.messages-composer textarea, .messages-search input { color: #111827; border-color: #CBD5E1; background: #fff; }
+.messages-filters button { color: #64748B; border-color: transparent; background: transparent; }
+.messages-filters button:hover { color: #1D4ED8; background: #EFF6FF; }
+.messages-filters button.active { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.explore-filters button:not(.filter-category) { color: #2563EB; }
+.filter-category { color: #475569; border-color: transparent; background: transparent; }
+.filter-category small { color: #64748B; }
+.filter-category:hover { color: #1D4ED8; background: #F1F5F9; }
+.filter-category.active {
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+  background: linear-gradient(100deg,#EFF6FF,#F5F3FF);
+}
+.filter-category.active, .filter-category.active * { color: #1D4ED8 !important; }
+.filter-category.active small { color: #2563EB; }
+
+main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+main textarea, main select {
+  color: #111827 !important;
+  border-color: #CBD5E1 !important;
+  background-color: #fff !important;
+}
+main input:not([type="checkbox"]):not([type="radio"]):not([type="file"])::placeholder,
+main textarea::placeholder { color: #94A3B8; }
+main input[type="checkbox"], main input[type="radio"] { accent-color: #2563EB; }
+main input[type="file"]::file-selector-button {
+  color: #1D4ED8;
+  border: 0;
+  border-radius: 6px;
+  background: #EFF6FF;
+}
+main input:focus, main textarea:focus, main select:focus { border-color: #60A5FA; outline-color: #2563EB; }
+.seller-auth-switch, .seller-auth-switch a, .seller-terms-label, .seller-demo-notice,
+.seller-upload-label, .seller-form-help, .contact-details, .order-disclaimer,
+.admin-form label, .admin-profile-copy { color: #475569; }
+.seller-avatar-upload, .seller-portfolio-upload {
+  color: #475569;
+  border-color: #CBD5E1;
+  background: #F8FAFF;
+}
+.seller-avatar-upload input, .seller-portfolio-upload input { color: #475569 !important; }
+.seller-avatar-upload input::file-selector-button, .seller-portfolio-upload input::file-selector-button {
+  color: #1D4ED8 !important;
+  border-color: #BFDBFE !important;
+  background: #EFF6FF !important;
+}
+.google-oauth-button {
+  color: #111827 !important;
+  border-color: #D1D5DB !important;
+  background: #fff !important;
+  box-shadow: 0 3px 12px rgba(15,23,42,.04);
+}
+.google-oauth-button:hover:not(:disabled) {
+  color: #1D4ED8 !important;
+  border-color: #93C5FD !important;
+  background: #EFF6FF !important;
+}
+.seller-demo-notice, .seller-auth-message, .seller-confirmation-notice { border-color: #BFDBFE; background: #EFF6FF; }
+.seller-auth-tabs button, .seller-tab, .admin-tab { color: #64748B; }
+.seller-auth-tabs button.active, .seller-tab.active, .admin-tab.active { color: #2563EB; border-color: #2563EB; }
+.admin-stat-card, .admin-table-wrap, .admin-chart-card, .admin-category-row,
+.admin-service-row, .dashboard-stat-card, .dashboard-activity-card { border-color: #E5E7EB; background: #fff; }
+.admin-stat-card strong, .admin-service-details h3, .admin-category-row strong,
+.dashboard-stat-card strong { color: #111827; }
+.admin-stat-card small, .admin-service-details p, .admin-category-row small,
+.dashboard-stat-card small { color: #64748B; }
+.admin-form input, .admin-form textarea, .admin-form select, .admin-confirm-modal textarea {
+  color: #111827;
+  border-color: #CBD5E1;
+  background: #fff;
+}
+.admin-confirm-modal { color: #111827; border-color: #E5E7EB; background: #fff; box-shadow: 0 22px 60px rgba(15,23,42,.18); }
+.admin-confirm-modal h2, .admin-confirm-modal > label { color: #111827; }
+.admin-confirm-modal > p { color: #64748B; }
+.admin-modal-close { color: #475569; }
+.admin-modal-icon { color: #2563EB; border-color: #BFDBFE; background: #EFF6FF; }
+.admin-category-row button { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.admin-search { color: #64748B; border-color: #CBD5E1; background: #fff; }
+.admin-search input { color: #111827 !important; background: transparent !important; }
+.admin-search input::placeholder { color: #94A3B8; }
+.admin-search button { color: #64748B; }
+.admin-icon-button, .admin-menu-toggle { color: #475569; border-color: #CBD5E1; background: #fff; }
+.admin-icon-button:hover, .admin-menu-toggle:hover { color: #1D4ED8; border-color: #93C5FD; background: #EFF6FF; }
+.admin-profile-button { color: #334155; }
+.admin-sidebar-foot { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.admin-sidebar-foot small { color: #64748B; }
+.admin-security-notice { color: #854D0E; border-color: #FDE68A; background: #FFFBEB; }
+.admin-security-notice > svg { color: #D97706; }
+.admin-security-notice strong { color: #78350F; }
+.admin-action-notice { color: #166534; border-color: #BBF7D0; background: #F0FDF4; }
+.admin-action-notice > button { color: #166534; }
+.admin-stat-card > span { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+.admin-demo-badge, .admin-status-chip { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+
+/* Readability fixes for the homepage and messaging workspace */
+body::after { display: none; }
+
+.service-search {
+  color: #2563EB;
+  border-color: #BFDBFE;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(37,99,235,.1);
+}
+.service-search:focus-within {
+  border-color: #60A5FA;
+  box-shadow: 0 0 0 4px rgba(37,99,235,.12),0 12px 30px rgba(37,99,235,.12);
+}
+.service-search > svg { flex: 0 0 auto; color: #2563EB; }
+.service-search input { color: #111827 !important; background: #fff !important; }
+.service-search input::placeholder { color: #94A3B8 !important; }
+.service-search .market-button { flex: 0 0 auto; }
+.popular-searches { color: #64748B; }
+.popular-searches button {
+  color: #475569;
+  border-color: #E5E7EB;
+  background: #fff;
+}
+.popular-searches button:hover { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+.market-scroll-link, .market-scroll-link:hover { color: #2563EB; }
+
+.category-card {
+  color: #111827;
+  border-color: #E5E7EB;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15,23,42,.045);
+}
+.category-card:hover, .category-card:focus-visible {
+  color: #111827;
+  border-color: #BFDBFE;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(37,99,235,.09);
+}
+.category-card .category-card-copy > strong { color: #111827 !important; }
+.category-card .category-card-copy > small { color: #64748B !important; }
+.category-card .category-arrow { color: #64748B; }
+.category-card:hover .category-arrow { color: #2563EB; }
+.category-icon {
+  color: #2563EB;
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+.category-icon-2 { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+.category-icon-3 { color: #0F766E; border-color: #99F6E4; background: #F0FDFA; }
+.category-icon-4 { color: #C2410C; border-color: #FED7AA; background: #FFF7ED; }
+.category-icon-5 { color: #0284C7; border-color: #BAE6FD; background: #F0F9FF; }
+.category-icon-6 { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+.category-icon-7 { color: #0F766E; border-color: #99F6E4; background: #F0FDFA; }
+.category-icon-8 { color: #C2410C; border-color: #FED7AA; background: #FFF7ED; }
+.seller-banner-copy .market-eyebrow { color: #2563EB; }
+
+.messages-page { color: #111827; background: #F8FAFF; }
+.messages-layout {
+  border-color: #E5E7EB;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15,23,42,.06);
+}
+.messages-inbox, .messages-conversation-list, .messages-chat, .messages-composer {
+  color: #111827;
+  background: #fff;
+}
+.messages-inbox { border-right-color: #E5E7EB; }
+.messages-inbox-heading { border-color: #E5E7EB; }
+.messages-inbox-heading h2, .messages-chat-person strong,
+.messages-conversation-topline strong { color: #111827; }
+.messages-inbox-heading > div > span, .messages-conversation-topline time,
+.messages-conversation-service, .messages-conversation-preview,
+.messages-inbox-footnote { color: #64748B !important; }
+.messages-search {
+  color: #64748B;
+  border-color: #CBD5E1;
+  background: #fff;
+}
+.messages-search:focus-within { border-color: #60A5FA; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.messages-search input { color: #111827 !important; background: transparent !important; }
+.messages-search input::placeholder { color: #94A3B8 !important; }
+.messages-search button { color: #64748B; }
+.messages-conversation { color: #334155; border-color: #E5E7EB; background: #fff; }
+.messages-conversation:hover { background: #F8FAFF; }
+.messages-conversation.selected { background: #EFF6FF; box-shadow: inset 3px 0 #2563EB; }
+.messages-conversation-topline strong { color: #111827; }
+.messages-chat { background-image: none; }
+.messages-chat-header { border-color: #DBEAFE; background: #EFF6FF; }
+.messages-chat-person > span { color: #64748B; }
+.messages-header-actions button, .messages-mobile-back {
+  color: #475569;
+  border-color: #CBD5E1;
+  background: #fff;
+}
+.messages-header-actions button:hover, .messages-mobile-back:hover {
+  color: #1D4ED8;
+  border-color: #93C5FD;
+  background: #EFF6FF;
+}
+.messages-order-reference { border-color: #E5E7EB; background: #F8FAFF; }
+.messages-order-icon { color: #2563EB; border-color: #BFDBFE; background: #EFF6FF; }
+.messages-order-reference small { color: #64748B; }
+.messages-order-reference strong { color: #111827; }
+.messages-order-status { color: #475569; border-color: #E5E7EB; background: #fff; }
+.messages-no-order > a { color: #2563EB; }
+.messages-thread { background: #fff; }
+.messages-sample-divider { color: #64748B; }
+.messages-sample-divider::before, .messages-sample-divider::after { background: #E5E7EB; }
+.messages-bubble-author, .messages-bubble-meta { color: #64748B; }
+.messages-bubble {
+  color: #334155;
+  border-color: #E5E7EB;
+  border-radius: 12px 12px 12px 4px;
+  background: #F1F5F9;
+}
+main .messages-bubble p:not(.google-oauth-error):not(.form-error):not(.messages-error):not(.service-order-error):not(.seller-field-error):not(.seller-auth-message):not(.dashboard-signout-error):not(.admin-form-error) {
+  color: #334155 !important;
+}
+.messages-bubble-row.own .messages-bubble {
+  color: #1E3A8A;
+  border-color: #BFDBFE;
+  border-radius: 12px 12px 4px 12px;
+  background: #DBEAFE;
+}
+main .messages-bubble-row.own .messages-bubble p:not(.google-oauth-error):not(.form-error):not(.messages-error):not(.service-order-error):not(.seller-field-error):not(.seller-auth-message):not(.dashboard-signout-error):not(.admin-form-error) {
+  color: #1E3A8A !important;
+}
+.messages-local-status { color: #854D0E; }
+.messages-sample-status { color: #64748B; }
+.messages-attachment { color: #334155; border-color: #E5E7EB; background: #fff; }
+.messages-attachment-icon { color: #6D28D9; background: #F5F3FF; }
+.messages-attachment-copy small { color: #64748B; }
+.messages-download-icon { color: #2563EB; }
+.messages-demo-note, .messages-action-notice {
+  color: #854D0E;
+  border-color: #FDE68A;
+  background: #FFFBEB;
+}
+main .messages-demo-note p:not(.google-oauth-error):not(.form-error):not(.messages-error):not(.service-order-error):not(.seller-field-error):not(.seller-auth-message):not(.dashboard-signout-error):not(.admin-form-error) {
+  color: #854D0E !important;
+}
+main p.messages-action-notice:not(.google-oauth-error):not(.form-error):not(.messages-error):not(.service-order-error):not(.seller-field-error):not(.seller-auth-message):not(.dashboard-signout-error):not(.admin-form-error) {
+  color: #854D0E !important;
+}
+.messages-demo-note strong { color: #78350F; }
+.messages-thread-empty { color: #6D28D9; }
+main .messages-thread-empty p:not(.google-oauth-error):not(.form-error):not(.messages-error):not(.service-order-error):not(.seller-field-error):not(.seller-auth-message):not(.dashboard-signout-error):not(.admin-form-error) {
+  color: #334155 !important;
+}
+.messages-thread-empty span { color: #64748B; }
+.messages-list-empty { color: #64748B; }
+.messages-list-empty svg { color: #6D28D9; }
+.messages-list-empty strong { color: #111827; }
+.messages-composer { border-color: #E5E7EB; }
+.messages-compose-input textarea { color: #111827 !important; border-color: #CBD5E1 !important; background: #fff !important; }
+.messages-compose-input textarea::placeholder { color: #94A3B8 !important; }
+.messages-compose-input > span, .messages-attachment-help { color: #64748B; }
+.messages-attach-button, .messages-page-footer a { color: #2563EB; }
+.messages-attach-button.disabled { opacity: .55; }
+.messages-pending-attachment { color: #334155; border-color: #E5E7EB; background: #F8FAFF; }
+.messages-pending-attachment button { color: #475569; background: #EFF6FF; }
+
+@media (max-width: 480px) {
+  .messages-layout { border-radius: 12px; }
 }

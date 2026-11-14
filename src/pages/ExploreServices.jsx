@@ -94,7 +94,7 @@ export default function ExploreServices() {
     <main className="explore-page">
       <section className="explore-page-intro">
         <div className="market-section explore-intro-inner">
-          <span className="market-eyebrow"><span className="market-eyebrow-dot" /> THE TECHSTUDIO MARKETPLACE</span>
+          <span className="market-eyebrow"><span className="market-eyebrow-dot" /> THE NEXTECH MARKETPLACE</span>
           <h1>Explore Website Services</h1>
           <p>Find talented developers to build your perfect website.</p>
           <form className="explore-search" onSubmit={searchServices} role="search">

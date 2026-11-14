@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="footer-brand-block">
           <Link className="brand" to="/">
             <span className="brand-mark"><span /></span>
-            <span>techstudio<span className="brand-period">.</span></span>
+            <span>NexTech<span className="brand-period">.</span></span>
           </Link>
           <p>A marketplace connecting great website ideas with talented developers.</p>
           <div className="footer-socials">
@@ -23,7 +23,7 @@ export default function Footer() {
             <Link to="/messages?role=customer">Messages demo</Link>
             <Link to="/services">Categories</Link>
             <Link to="/templates">Website Templates</Link>
-            <Link to="/about">About TechStudio</Link>
+            <Link to="/about">About NexTech</Link>
             <Link to="/studio-services">Studio Services</Link>
           </div>
           <div>
@@ -41,7 +41,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} TechStudio. Connecting ideas with developers.</span>
+        <span>© {new Date().getFullYear()} NexTech. Connecting ideas with developers.</span>
         <a href="mailto:hello@techstudio.pk">Have a project? <span>Let’s talk.</span></a>
       </div>
     </footer>

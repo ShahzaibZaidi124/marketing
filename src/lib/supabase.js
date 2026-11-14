@@ -10,7 +10,7 @@ export function getSupabaseClient() {
   )?.trim();
 
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error("Google sign-in is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.");
+    throw new Error("Supabase authentication is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.");
   }
 
   if (!supabaseClient) {

@@ -23,7 +23,7 @@ export default function ServiceCard({ service }) {
         <h3>{service.title}</h3>
         <p>{service.description}</p>
         <div className="service-card-meta"><span>Starting at</span><strong>PKR {new Intl.NumberFormat("en-PK").format(service.price)}</strong></div>
-        {expanded && !isSellerService && <p className="service-expanded-note">This sample listing is for demonstration. Contact TechStudio to discuss a similar website project and get connected with a developer.</p>}
+        {expanded && !isSellerService && <p className="service-expanded-note">This sample listing is for demonstration. Contact NexTech to discuss a similar website project and get connected with a developer.</p>}
         <div className="service-card-actions">
           {isSellerService ? (
             <Link className="market-button market-button-outline service-view-button" to={`/services/${service.id}`}>View Service <ArrowRight size={15} /></Link>
@@ -32,7 +32,7 @@ export default function ServiceCard({ service }) {
               <button className="market-button market-button-outline service-view-button" type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
                 {expanded ? "Hide Details" : "View Service"} <ChevronDown size={15} />
               </button>
-              {expanded && <a className="service-contact-link" href={`mailto:hello@techstudio.pk?subject=${encodeURIComponent(`Website project inquiry: ${service.title}`)}`}>Contact TechStudio <ArrowUpRight size={14} /></a>}
+              {expanded && <a className="service-contact-link" href={`mailto:hello@techstudio.pk?subject=${encodeURIComponent(`Website project inquiry: ${service.title}`)}`}>Contact NexTech <ArrowUpRight size={14} /></a>}
             </>
           )}
         </div>

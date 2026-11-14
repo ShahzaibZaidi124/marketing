@@ -335,7 +335,7 @@ export default function Messages() {
     <main className="messages-page">
       <header className="messages-heading">
         <div>
-          <span className="market-eyebrow">TECHSTUDIO MESSAGES</span>
+          <span className="market-eyebrow">NEXTECH MESSAGES</span>
           <h1>Inbox</h1>
           <p>Discuss project details in one place.</p>
         </div>

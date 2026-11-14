@@ -172,7 +172,7 @@ export default function CustomerDashboard() {
 
   const navigation = [
     ...customerNavigation,
-    { key: "logout", label: "Logout", Icon: LogOut, onClick: () => navigate("/") },
+    { key: "logout", label: "Logout", Icon: LogOut },
   ];
 
   const renderOrders = () => (
@@ -244,7 +244,7 @@ export default function CustomerDashboard() {
     <section className="dashboard-panel">
       <DashboardSectionHeading eyebrow="YOUR FEEDBACK" title="My reviews" description="Reviews are not connected to an order or review service." />
       <EmptyState icon={Star} title="No reviews available">
-        TechStudio has no review backend, and this demo does not create ratings or review records.
+        NexTech has no review backend, and this demo does not create ratings or review records.
       </EmptyState>
     </section>
   );

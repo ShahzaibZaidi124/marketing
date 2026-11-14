@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ArrowUpRight, Menu, X } from "lucide-react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const links = [
   { label: "Home", to: "/" },
@@ -13,8 +14,30 @@ const links = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+  const { user, loading, signOut } = useAuth();
 
   const closeMenu = () => setMenuOpen(false);
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setSignOutError("");
+    try {
+      await signOut();
+      closeMenu();
+    } catch (authError) {
+      setSignOutError(authError instanceof Error
+        ? authError.message
+        : "Could not sign out. Please try again.");
+    } finally {
+      setSigningOut(false);
+    }
+  };
+  const accountLabel = user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || user?.email
+    || "Signed in";
 
   return (
     <header className="site-header">
@@ -44,10 +67,32 @@ export default function Header() {
               {label}
             </NavLink>
           ))}
-          <Link className="nav-login" to="/seller/login" onClick={closeMenu}>Login</Link>
-          <Link className="market-button market-button-primary nav-signup" to="/seller/register" onClick={closeMenu}>
-            Sign Up <ArrowUpRight size={14} />
-          </Link>
+          {loading ? (
+            <span className="nav-auth-loading" role="status">Checking session…</span>
+          ) : user ? (
+            <>
+              <span className="nav-account" title={accountLabel} aria-label={`Signed in as ${accountLabel}`}>
+                {accountLabel}
+              </span>
+              <button
+                className="nav-login nav-logout"
+                type="button"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                aria-busy={signingOut}
+              >
+                {signingOut ? "Signing out…" : "Sign out"}
+              </button>
+              {signOutError && <span className="nav-auth-error" role="alert">{signOutError}</span>}
+            </>
+          ) : (
+            <>
+              <Link className="nav-login" to="/seller/login" onClick={closeMenu}>Login</Link>
+              <Link className="market-button market-button-primary nav-signup" to="/seller/register" onClick={closeMenu}>
+                Sign Up <ArrowUpRight size={14} />
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

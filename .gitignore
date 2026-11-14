@@ -1,2 +1,5 @@
 node_modules/
 dist/
+.env
+.env.*
+!I will update the Supabase Publishable Key directly in my local .env.local file using the copy button from Supabase Dashboard. Do not ask me to paste the key into chat. Please wait until I update the file, then help me test the connection..example

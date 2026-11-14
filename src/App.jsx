@@ -16,12 +16,13 @@ import CustomerDashboard from "./pages/CustomerDashboard.jsx";
 import {
   SellerDashboard,
   SellerIntro,
-  SellerLoginUnavailable,
+  SellerLogin,
   SellerProfileSetup,
   SellerRegistration,
 } from "./pages/SellerPages.jsx";
 import ServiceEditor from "./pages/ServiceEditor.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import AuthCallback from "./pages/AuthCallback.jsx";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -55,13 +56,14 @@ export default function App() {
         <Route path="/services/:id" element={<ServiceDetails />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/seller" element={<SellerIntro />} />
         <Route path="/seller/register" element={<SellerRegistration />} />
         <Route path="/seller/profile" element={<SellerProfileSetup />} />
         <Route path="/seller/dashboard" element={<SellerDashboard />} />
         <Route path="/seller/services/new" element={<ServiceEditor />} />
         <Route path="/seller/services/:id/edit" element={<ServiceEditor />} />
-        <Route path="/seller/login" element={<SellerLoginUnavailable />} />
+        <Route path="/seller/login" element={<SellerLogin />} />
         <Route path="/studio-services" element={<Services />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />

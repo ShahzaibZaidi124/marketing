@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout.jsx";
+import GoogleOAuthButton from "../components/GoogleOAuthButton.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -206,12 +207,12 @@ export function SellerRegistration() {
           <SellerPageHeading
             eyebrow="YOUR SELLER PROFILE STARTS HERE"
             title="Create a seller profile preview"
-            description="A few details to get your TechStudio seller profile ready."
+            description="Sign in with Google, or explore the local seller-profile preview."
           />
           <div className="seller-form-aside-card">
             <span className="seller-form-aside-icon"><ShieldAlert size={20} /></span>
-            <h2>Demo mode</h2>
-            <p>No authentication service is connected, so this preview does not request or store a password or create an account.</p>
+            <h2>Profile preview</h2>
+            <p>The form below is local-only and does not create a seller profile. Google authentication is handled separately by Supabase.</p>
             <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Create a profile preview</span>
             <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Set up your seller page</span>
             <span className="seller-form-aside-step"><CheckCircle2 size={14} /> Explore the demo dashboard</span>
@@ -219,6 +220,8 @@ export function SellerRegistration() {
         </section>
 
         <form className="seller-form-card" onSubmit={submitRegistration} noValidate>
+          <GoogleOAuthButton />
+          <div className="google-oauth-divider"><span>OR CONTINUE WITH PROFILE PREVIEW</span></div>
           <div className="seller-form-card-heading">
             <span className="seller-form-step-number">01</span>
             <div><h2>Seller information</h2><p>Fields marked <span>*</span> are required.</p></div>
@@ -285,7 +288,7 @@ export function SellerRegistration() {
           </div>
           <button className="market-button market-button-primary seller-submit-button" type="submit">Continue to profile preview <ArrowRight size={15} /></button>
           <p className="seller-form-footer">Already have an account? <Link to="/seller/login">Log in</Link></p>
-          <p className="seller-no-password-note"><ShieldAlert size={13} /> This preview does not collect passwords or create accounts.</p>
+          <p className="seller-no-password-note"><ShieldAlert size={13} /> This form is a local profile preview; it does not create an authenticated seller account.</p>
         </form>
       </div>
     </main>
@@ -746,15 +749,17 @@ export function SellerDashboard() {
   );
 }
 
-export function SellerLoginUnavailable() {
+export function SellerLogin() {
+  const location = useLocation();
+
   return (
     <main className="market-section seller-page seller-login-page">
       <div className="seller-login-card">
         <span className="seller-login-icon"><ShieldAlert size={22} /></span>
         <span className="market-eyebrow">SELLER ACCOUNT ACCESS</span>
-        <h1>Seller login isn’t available yet.</h1>
-        <p>TechStudio’s authentication backend is not connected, so seller accounts and secure sign-in are not available in this demo.</p>
-        <DemoNotice>No credentials are accepted or stored here. Please do not enter a real password.</DemoNotice>
+        <h1>Log in or sign up with Google</h1>
+        <p>Continue with Google to authenticate your TechStudio account using Supabase.</p>
+        <GoogleOAuthButton initialError={location.state?.authError || ""} />
         <div className="seller-login-actions">
           <Link className="market-button market-button-primary" to="/seller/register">Preview seller registration <ArrowRight size={15} /></Link>
           <Link className="market-button market-button-outline" to="/seller">Back to Become a Seller</Link>

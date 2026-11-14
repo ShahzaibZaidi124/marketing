@@ -458,6 +458,11 @@ a { color: inherit; text-decoration: none; }
 .nav-link, .nav-login { color: #a7b2c8; font-size: 12px; transition: color .2s ease; }
 .nav-link:hover, .nav-link-active, .nav-login:hover { color: #fff; }
 .nav-login { white-space: nowrap; }
+.nav-account { max-width: 180px; overflow: hidden; color: #cbd5e1; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.nav-auth-loading { color: #94a3b8; font-size: 10px; white-space: nowrap; }
+.nav-logout { padding: 0; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.nav-logout:disabled { opacity: .65; cursor: wait; }
+.nav-auth-error { max-width: 190px; color: #fca5a5; font-size: 9px; line-height: 1.4; }
 .nav-signup { min-height: 39px; padding: 0 15px; font-size: 11px; }
 .market-home { overflow: hidden; background: #080D1A; }
 .market-button {
@@ -634,7 +639,7 @@ a { color: inherit; text-decoration: none; }
   .menu-toggle { width: 38px; height: 38px; padding: 0; border: 1px solid #9db0ce2b; border-radius: 9px; display: grid; place-items: center; color: #eef3ff; background: #ffffff08; cursor: pointer; }
   .main-nav { position: absolute; top: 69px; right: 0; left: 0; padding: 11px 20px 19px; border-bottom: 1px solid #9db0ce24; display: none; flex-direction: column; align-items: stretch; gap: 0; background: #0b1426fa; box-shadow: 0 18px 30px #0006; }
   .main-nav-open { display: flex; }
-  .main-nav .nav-link, .main-nav .nav-login { padding: 13px 3px; border-bottom: 1px solid #ffffff10; font-size: 12px; }
+  .main-nav .nav-link, .main-nav .nav-login, .main-nav .nav-account { padding: 13px 3px; border-bottom: 1px solid #ffffff10; font-size: 12px; }
   .main-nav .nav-signup { margin-top: 13px; }
   .market-hero { min-height: 0; }
   .market-hero-inner { min-height: 0; padding-top: 52px; grid-template-columns: 1fr; gap: 0; }
@@ -1437,6 +1442,18 @@ a { color: inherit; text-decoration: none; }
 .seller-login-card h1 { margin: 10px 0 8px; color: #f3f6ff; font: 500 clamp(23px,3.8vw,31px)/1.25 "Poppins",sans-serif; }
 .seller-login-card > p { max-width: 460px; margin: 0 auto; color: #98a7be; font-size: 10px; line-height: 1.8; }
 .seller-login-card > .seller-demo-notice { text-align: left; }
+.google-oauth-section { width: 100%; }
+.google-oauth-button { width: 100%; min-height: 44px; padding: 0 15px; border: 1px solid #33425e; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 11px; color: #f8fbff; background: #111a2e; font: 500 12px "Inter",sans-serif; cursor: pointer; transition: border-color .2s,background .2s,transform .2s,opacity .2s; }
+.google-oauth-button:hover:not(:disabled) { transform: translateY(-1px); border-color: #2563eb; background: #162440; }
+.google-oauth-button:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 3px; }
+.google-oauth-button:disabled { opacity: .68; cursor: wait; }
+.google-oauth-logo { width: 18px; height: 18px; flex: 0 0 auto; }
+.google-oauth-spinner { flex: 0 0 auto; animation: google-auth-spin .9s linear infinite; }
+.google-oauth-error { margin: 9px 0 0; color: #fca5a5; font-size: 10px; line-height: 1.6; text-align: left; }
+.google-oauth-divider { margin: 17px 0; display: flex; align-items: center; gap: 10px; color: #8290a8; font-size: 7px; letter-spacing: .08em; }
+.google-oauth-divider::before, .google-oauth-divider::after { height: 1px; flex: 1; background: #8195b629; content: ""; }
+.seller-login-card .google-oauth-section { margin-top: 18px; }
+@keyframes google-auth-spin { to { transform: rotate(360deg); } }
 .seller-login-actions { margin-top: 19px; display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; }
 .seller-login-actions .market-button { min-height: 40px; font-size: 8px; }
 .seller-login-contact { display: inline-block; margin-top: 16px; color: #a99aff; font-size: 8px; }

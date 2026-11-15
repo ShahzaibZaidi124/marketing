@@ -57,6 +57,7 @@ export default function App() {
         <Route path="/services/:id" element={<ServiceDetails />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+        <Route path="/customer/orders/:orderId" element={<CustomerDashboard />} />
         <Route path="/customer/profile" element={<ClientProfile />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/seller" element={<SellerIntro />} />

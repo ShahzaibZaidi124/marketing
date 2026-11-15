@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Bookmark,
-  BookmarkCheck,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -12,23 +11,39 @@ import {
   MapPin,
   MessageCircle,
   PackageCheck,
+  PencilLine,
+  Search,
   Settings,
   ShoppingBag,
+  Sparkles,
   Star,
   Trash2,
   UserRound,
 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 import {
+  duplicateUsernameMessage,
+  getDuplicateUsernameErrorMessage,
+  getClientProfile,
+  isClientProfileUsernameTaken,
   saveClientProfile,
   updateUserEmail,
   updateUserMetadata,
   updateUserPassword,
   verifyAuthenticatedUser,
 } from "../lib/auth.js";
+import {
+  filterClientOrders,
+  formatClientOrderDate,
+  formatClientOrderPrice,
+  formatClientOrderStatus,
+  getClientOrder,
+  getClientOrders,
+  getOrderLoadErrorMessage,
+} from "../lib/orders.js";
 import { validateClientProfileDraft } from "../lib/profileValidation.js";
 
 const customerNavigation = [
@@ -43,7 +58,12 @@ const customerNavigation = [
   { key: "settings", label: "Account Settings", Icon: Settings },
 ];
 
-const orderStatuses = ["All", "Pending", "In Progress", "Delivered", "Completed", "Cancelled"];
+const orderStatusFilters = [
+  { value: "all", label: "All Orders" },
+  { value: "pending", label: "Pending" },
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+];
 
 function EmptyState({ icon: Icon, title, children, action }) {
   return (
@@ -66,6 +86,95 @@ function DashboardSectionHeading({ eyebrow, title, description, action }) {
       </div>
       {action}
     </header>
+  );
+}
+
+function getAuthenticatedDisplayName(profile, metadata = {}) {
+  const candidates = [profile?.full_name, metadata.full_name, metadata.name];
+  return candidates.find((value) => typeof value === "string" && value.trim())?.trim() || "";
+}
+
+function formatOrderRequirement(value) {
+  if (value === null || value === undefined || value === "") return "Not provided";
+  if (Array.isArray(value)) return value.join(", ") || "Not provided";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function OrderCard({ order }) {
+  const status = ["pending", "active", "completed"].includes(order.status) ? order.status : "unknown";
+  return (
+    <article className="dashboard-order-card">
+      <div className="dashboard-order-card-heading">
+        <div>
+          <span className="dashboard-order-id">Order ID · {order.id}</span>
+          <h3>{order.service_name}</h3>
+        </div>
+        <span className={`dashboard-order-status dashboard-order-status-${status}`}>{formatClientOrderStatus(order.status)}</span>
+      </div>
+      {order.order_description && <p className="dashboard-order-project">{order.order_description}</p>}
+      {order.project_name && <p className="dashboard-order-project">{order.project_name}</p>}
+      <dl className="dashboard-order-meta">
+        <div><dt>Order date</dt><dd>{formatClientOrderDate(order.created_at)}</dd></div>
+        <div><dt>Price</dt><dd>{formatClientOrderPrice(order.price, order.currency)}</dd></div>
+      </dl>
+      <Link className="dashboard-order-details-link" to={`/customer/orders/${order.id}`}>
+        View Details <ArrowRight size={15} />
+      </Link>
+    </article>
+  );
+}
+
+function OrderCardSkeleton() {
+  return (
+    <article className="dashboard-order-card-skeleton" aria-hidden="true">
+      <span className="dashboard-order-skeleton-line dashboard-order-skeleton-title" />
+      <span className="dashboard-order-skeleton-line" />
+      <span className="dashboard-order-skeleton-line dashboard-order-skeleton-short" />
+    </article>
+  );
+}
+
+function OrderDetails({ order, onBack }) {
+  const requirements = order.requirements && typeof order.requirements === "object" && !Array.isArray(order.requirements)
+    ? Object.entries(order.requirements)
+    : [];
+  const status = ["pending", "active", "completed"].includes(order.status) ? order.status : "unknown";
+
+  return (
+    <section className="dashboard-panel dashboard-order-details">
+      <DashboardSectionHeading
+        eyebrow="ORDER DETAILS"
+        title={order.service_name}
+        description={`Order ID · ${order.id}`}
+        action={<button className="dashboard-text-link" type="button" onClick={onBack}>Back to My Orders</button>}
+      />
+      <div className="dashboard-order-detail-summary">
+        <div>
+          <span>Order status</span>
+          <strong className={`dashboard-order-status dashboard-order-status-${status}`}>{formatClientOrderStatus(order.status)}</strong>
+        </div>
+        <div><span>Order date</span><strong>{formatClientOrderDate(order.created_at)}</strong></div>
+        <div><span>Last updated</span><strong>{formatClientOrderDate(order.updated_at)}</strong></div>
+        <div><span>Price</span><strong>{formatClientOrderPrice(order.price, order.currency)}</strong></div>
+      </div>
+      {(order.order_description || order.project_name || order.package_name || requirements.length > 0) && (
+        <section className="dashboard-order-requirements">
+          <h3>Order information</h3>
+          <dl>
+            {order.order_description && <div><dt>Description</dt><dd>{order.order_description}</dd></div>}
+            {order.project_name && <div><dt>Project</dt><dd>{order.project_name}</dd></div>}
+            {order.package_name && <div><dt>Package</dt><dd>{order.package_name}</dd></div>}
+            {requirements.map(([key, value]) => (
+              <div key={key}>
+                <dt>{key.replace(/[_-]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</dt>
+                <dd>{formatOrderRequirement(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+    </section>
   );
 }
 
@@ -159,7 +268,8 @@ function AccountSettings({ preferences, setPreferences }) {
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profilePictureUrl } = useAuth();
+  const { orderId } = useParams();
+  const { user, loading: authLoading, profilePictureUrl } = useAuth();
   const {
     allServices,
     savedServiceIds,
@@ -168,8 +278,22 @@ export default function CustomerDashboard() {
     customerProfile,
     updateCustomerProfile,
   } = useMarketplace();
-  const [activeSection, setActiveSection] = useState(() => location.state?.section === "profile" ? "profile" : "overview");
-  const [orderStatus, setOrderStatus] = useState("All");
+  const [activeSection, setActiveSection] = useState(() => orderId
+    ? "order-details"
+    : location.state?.section === "profile"
+      ? "profile"
+      : location.state?.section === "orders"
+        ? "orders"
+        : "overview");
+  const [orderStatus, setOrderStatus] = useState("all");
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState("");
+  const [ordersLoadAttempt, setOrdersLoadAttempt] = useState(0);
+  const [orderDetail, setOrderDetail] = useState(null);
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
+  const [orderDetailError, setOrderDetailError] = useState("");
+  const [orderDetailLoadAttempt, setOrderDetailLoadAttempt] = useState(0);
   const [profileForm, setProfileForm] = useState(customerProfile);
   const [profileError, setProfileError] = useState("");
   const [profileNotice, setProfileNotice] = useState("");
@@ -177,14 +301,33 @@ export default function CustomerDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
   const savingProfileRef = useRef(false);
   const [preferences, setPreferences] = useState({ orderUpdates: true, marketplaceUpdates: false });
+  const [dashboardDisplayName, setDashboardDisplayName] = useState("");
+  const [dashboardProfileLoading, setDashboardProfileLoading] = useState(false);
+  const [dashboardProfileError, setDashboardProfileError] = useState("");
+  const [dashboardProfileLoadAttempt, setDashboardProfileLoadAttempt] = useState(0);
   const hydratedUserId = useRef("");
 
   useEffect(() => {
-    if (!user || hydratedUserId.current === user.id) return;
+    if (orderId) {
+      setActiveSection("order-details");
+      return;
+    }
+    if (["orders", "active-orders", "completed-orders", "profile", "saved", "reviews", "settings"].includes(location.state?.section)) {
+      setActiveSection(location.state.section);
+    }
+  }, [orderId, location.state?.section]);
+
+  useEffect(() => {
+    if (!user) {
+      hydratedUserId.current = "";
+      setDashboardDisplayName("");
+      return;
+    }
+    if (hydratedUserId.current === user.id) return;
     hydratedUserId.current = user.id;
     const metadata = user.user_metadata || {};
     const profile = {
-      displayName: metadata.full_name || metadata.name || "",
+      displayName: getAuthenticatedDisplayName(null, metadata),
       username: metadata.username || "",
       email: user.email || "",
       country: metadata.country || "",
@@ -192,9 +335,128 @@ export default function CustomerDashboard() {
       description: metadata.about || "",
       interests: metadata.services_interested || "",
     };
+    setDashboardDisplayName(profile.displayName);
     setProfileForm((current) => ({ ...current, ...profile }));
     updateCustomerProfile(profile);
   }, [user, updateCustomerProfile]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setDashboardProfileLoading(false);
+      setDashboardProfileError("");
+      return undefined;
+    }
+
+    let active = true;
+    const metadata = user.user_metadata || {};
+    setDashboardProfileLoading(true);
+    setDashboardProfileError("");
+    getClientProfile(user.id)
+      .then((profile) => {
+        if (!active) return;
+        const nextProfile = {
+          displayName: getAuthenticatedDisplayName(profile, metadata),
+          username: profile?.username ?? metadata.username ?? "",
+          email: user.email || "",
+          country: profile?.country ?? metadata.country ?? "",
+          city: profile?.city ?? metadata.city ?? "",
+          description: profile?.bio ?? metadata.about ?? metadata.bio ?? "",
+          interests: profile?.services_interested ?? metadata.services_interested ?? metadata.interests ?? "",
+        };
+        setDashboardDisplayName(nextProfile.displayName);
+        setProfileForm((current) => ({ ...current, ...nextProfile }));
+        updateCustomerProfile(nextProfile);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setDashboardProfileError(error instanceof Error
+          ? error.message
+          : "Your account profile could not be loaded from Supabase.");
+      })
+      .finally(() => {
+        if (active) setDashboardProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, user?.email, user?.user_metadata, dashboardProfileLoadAttempt, updateCustomerProfile]);
+
+  useEffect(() => {
+    if (authLoading) {
+      setOrdersLoading(true);
+      return undefined;
+    }
+    if (!user?.id) {
+      setOrders([]);
+      setOrdersError("");
+      setOrdersLoading(false);
+      return undefined;
+    }
+    if (orderId) {
+      setOrders([]);
+      setOrdersError("");
+      setOrdersLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setOrders([]);
+    setOrdersError("");
+    setOrdersLoading(true);
+    getClientOrders(user.id)
+      .then((loadedOrders) => {
+        if (active) setOrders(loadedOrders);
+      })
+      .catch((error) => {
+        if (active) setOrdersError(getOrderLoadErrorMessage(error));
+      })
+      .finally(() => {
+        if (active) setOrdersLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, user?.id, orderId, ordersLoadAttempt]);
+
+  useEffect(() => {
+    if (!orderId) {
+      setOrderDetail(null);
+      setOrderDetailError("");
+      setOrderDetailLoading(false);
+      return undefined;
+    }
+    if (authLoading) {
+      setOrderDetailLoading(true);
+      return undefined;
+    }
+    if (!user?.id) {
+      setOrderDetail(null);
+      setOrderDetailError("");
+      setOrderDetailLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setOrderDetail(null);
+    setOrderDetailError("");
+    setOrderDetailLoading(true);
+    getClientOrder(user.id, orderId)
+      .then((loadedOrder) => {
+        if (active) setOrderDetail(loadedOrder);
+      })
+      .catch((error) => {
+        if (active) setOrderDetailError(getOrderLoadErrorMessage(error));
+      })
+      .finally(() => {
+        if (active) setOrderDetailLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [orderId, user?.id, authLoading, orderDetailLoadAttempt]);
 
   const savedServices = useMemo(
     () => savedServiceIds.map((id) => allServices.find((service) => service.id === id)).filter(Boolean),
@@ -203,6 +465,15 @@ export default function CustomerDashboard() {
   const recentlyViewed = useMemo(
     () => recentlyViewedServiceIds.map((id) => allServices.find((service) => service.id === id)).filter(Boolean),
     [allServices, recentlyViewedServiceIds],
+  );
+  const effectiveOrderStatus = activeSection === "active-orders"
+    ? "active"
+    : activeSection === "completed-orders"
+      ? "completed"
+      : orderStatus;
+  const filteredOrders = useMemo(
+    () => filterClientOrders(orders, effectiveOrderStatus),
+    [orders, effectiveOrderStatus],
   );
 
   const updateProfileField = (event) => {
@@ -260,9 +531,30 @@ export default function CustomerDashboard() {
     };
     savingProfileRef.current = true;
     setSavingProfile(true);
+    let profileSavedToSupabase = false;
     try {
       if (user) {
         await verifyAuthenticatedUser(user.id);
+        if (await isClientProfileUsernameTaken({ userId: user.id, username: nextProfile.username })) {
+          setProfileFieldErrors((current) => ({ ...current, username: duplicateUsernameMessage }));
+          document.getElementById("customer-username")?.focus();
+          return;
+        }
+        await saveClientProfile({
+          userId: user.id,
+          email: user.email || "",
+          role: user.user_metadata?.role === "seller" ? "seller" : "customer",
+          sellerDetails: user.user_metadata?.seller_details || {},
+          profile: {
+            fullName: nextProfile.displayName,
+            username: nextProfile.username,
+            country: nextProfile.country,
+            city: nextProfile.city,
+            bio: nextProfile.description,
+            servicesInterested: nextProfile.interests,
+          },
+        });
+        profileSavedToSupabase = true;
         const updatedUser = profileForm.email.trim() !== (user.email || "")
           ? await updateUserEmail(nextProfile.email)
           : user;
@@ -276,20 +568,15 @@ export default function CustomerDashboard() {
           services_interested: nextProfile.interests,
           role: user.user_metadata?.role === "seller" ? "seller" : "customer",
         });
-        await saveClientProfile({
-          userId: savedUser.id,
-          email: updatedUser.email || user.email,
-          role: user.user_metadata?.role === "seller" ? "seller" : "customer",
-          sellerDetails: user.user_metadata?.seller_details || {},
-          profile: {
-            fullName: nextProfile.displayName,
-            username: nextProfile.username,
-            country: nextProfile.country,
-            city: nextProfile.city,
-            bio: nextProfile.description,
-            servicesInterested: nextProfile.interests,
-          },
-        });
+        if (updatedUser.email !== user.email) {
+          await saveClientProfile({
+            userId: savedUser.id,
+            email: updatedUser.email || user.email || "",
+            role: user.user_metadata?.role === "seller" ? "seller" : "customer",
+            sellerDetails: user.user_metadata?.seller_details || {},
+            profile: {},
+          });
+        }
         setProfileNotice(profileForm.email.trim() !== (user.email || "")
           ? "Your profile was saved. Check your email to confirm the new address."
           : "Your client profile was saved to your account.");
@@ -299,7 +586,19 @@ export default function CustomerDashboard() {
       updateCustomerProfile(nextProfile);
       setProfileForm(nextProfile);
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : "Your profile could not be saved. Please try again.");
+      const duplicateMessage = getDuplicateUsernameErrorMessage(error);
+      if (duplicateMessage) {
+        setProfileFieldErrors((current) => ({ ...current, username: duplicateMessage }));
+        document.getElementById("customer-username")?.focus();
+      }
+      const message = error instanceof Error ? error.message : "Your profile could not be saved. Please try again.";
+      if (profileSavedToSupabase) {
+        updateCustomerProfile(nextProfile);
+        setProfileForm(nextProfile);
+      }
+      setProfileError(duplicateMessage ? "" : profileSavedToSupabase
+        ? `Your profile was saved, but account details could not be updated: ${message}`
+        : message);
     } finally {
       savingProfileRef.current = false;
       setSavingProfile(false);
@@ -311,56 +610,192 @@ export default function CustomerDashboard() {
     { key: "logout", label: "Log out", Icon: LogOut },
   ];
 
+  const selectDashboardSection = (section) => {
+    if (orderId) {
+      navigate("/customer/dashboard", { state: { section } });
+      return;
+    }
+    setActiveSection(section);
+  };
+  const currentSection = orderId ? "order-details" : activeSection;
+
+  const renderOrderStatistics = () => {
+    const countByStatus = (status) => orders.filter((order) => order.status === status).length;
+    const orderDataReady = Boolean(user && !authLoading && !ordersLoading && !ordersError);
+    const unavailableText = authLoading || ordersLoading
+      ? "Loading order data…"
+      : !user
+        ? "Sign in to view your orders."
+        : "Order data couldn't be loaded.";
+    const summaries = [
+      { label: "Total orders", Icon: ShoppingBag, count: orders.length },
+      { label: "Active orders", Icon: Clock3, count: countByStatus("active") },
+      { label: "Completed orders", Icon: PackageCheck, count: countByStatus("completed") },
+      { label: "Pending orders", Icon: Clock3, count: countByStatus("pending") },
+    ];
+
+    return summaries.map(({ label, Icon, count }) => (
+      <article className="dashboard-stat-card dashboard-order-stat" key={label}>
+        <span><Icon size={17} /></span>
+        <small>{label}</small>
+        <strong aria-label={orderDataReady ? `${label}: ${count}` : `${label} unavailable`}>
+          {orderDataReady ? count.toLocaleString("en") : "—"}
+        </strong>
+        <p>{orderDataReady ? "From your saved order history." : unavailableText}</p>
+      </article>
+    ));
+  };
+
   const renderOrders = () => (
     <section className="dashboard-panel">
       <DashboardSectionHeading
         eyebrow="PROJECT HISTORY"
-        title={activeSection === "active-orders" ? "Active orders" : activeSection === "completed-orders" ? "Completed orders" : "My orders"}
-        description="Order records and progress are unavailable because checkout is demo-only."
+        title={currentSection === "active-orders" ? "Active orders" : currentSection === "completed-orders" ? "Completed orders" : "My orders"}
+        description="Orders shown here are loaded from your authenticated account."
       />
-      <div className="dashboard-order-filters" aria-label="Filter orders by status">
-        {orderStatuses.map((status) => (
-          <button key={status} type="button" className={orderStatus === status ? "active" : ""} aria-pressed={orderStatus === status} onClick={() => setOrderStatus(status)}>
-            {status}
+      <div className="dashboard-order-filters" role="group" aria-label="Filter orders by status">
+        {orderStatusFilters.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            className={effectiveOrderStatus === value ? "active" : ""}
+            aria-pressed={effectiveOrderStatus === value}
+            onClick={() => {
+              setOrderStatus(value);
+              setActiveSection("orders");
+            }}
+          >
+            {label}
           </button>
         ))}
       </div>
-      <EmptyState icon={ShoppingBag} title="No order records to show">
-        Order submissions are not sent or saved in this demo, so there are no real order numbers, sellers, prices, dates, deadlines, or statuses to display.
-      </EmptyState>
+      {authLoading || ordersLoading
+        ? <div className="dashboard-order-list" role="status" aria-label="Loading orders">
+          {Array.from({ length: 3 }, (_, index) => <OrderCardSkeleton key={index} />)}
+        </div>
+        : !user
+          ? <EmptyState icon={ShoppingBag} title="Sign in to view your orders">Your order history is private to your NexTech account.</EmptyState>
+          : ordersError
+            ? <div className="dashboard-orders-error" role="alert">
+              <p>{ordersError}</p>
+              <button type="button" onClick={() => setOrdersLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+            </div>
+            : orders.length === 0
+              ? <EmptyState icon={ShoppingBag} title="No orders yet">
+                Orders linked to your account will appear here once they have been created.
+              </EmptyState>
+              : filteredOrders.length === 0
+                ? <EmptyState icon={ShoppingBag} title="No orders match this filter">Try another status to see your order history.</EmptyState>
+                : <div className="dashboard-order-list">{filteredOrders.map((order) => <OrderCard key={order.id} order={order} />)}</div>}
     </section>
+  );
+
+  const renderOrderDetails = () => (
+    orderDetailLoading || authLoading
+      ? <section className="dashboard-panel dashboard-order-details" role="status" aria-label="Loading order details">
+        <div className="dashboard-order-details-skeleton">
+          <OrderCardSkeleton />
+          <OrderCardSkeleton />
+        </div>
+      </section>
+      : !user
+        ? <section className="dashboard-panel"><EmptyState icon={ShoppingBag} title="Sign in to view order details">Order details are private to the client account that placed the order.</EmptyState></section>
+        : orderDetailError
+          ? <section className="dashboard-panel dashboard-orders-error" role="alert">
+            <p>{orderDetailError}</p>
+            <button type="button" onClick={() => setOrderDetailLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+            <button type="button" onClick={() => navigate("/customer/dashboard", { state: { section: "orders" } })}>Back to My Orders</button>
+          </section>
+          : !orderDetail
+            ? <section className="dashboard-panel">
+              <DashboardSectionHeading eyebrow="ORDER DETAILS" title="Order not found" action={<button className="dashboard-text-link" type="button" onClick={() => navigate("/customer/dashboard", { state: { section: "orders" } })}>Back to My Orders</button>} />
+              <EmptyState icon={ShoppingBag} title="This order isn't available">It may not exist, or it may not belong to your account.</EmptyState>
+            </section>
+            : <OrderDetails
+              order={orderDetail}
+              onBack={() => navigate("/customer/dashboard", { state: { section: "orders" } })}
+            />
   );
 
   const renderOverview = () => (
     <>
-      <section className="dashboard-stat-grid" aria-label="Customer overview">
-        <article className="dashboard-stat-card"><span><ShoppingBag size={17} /></span><small>Total orders</small><strong>Unavailable</strong><p>No order records are connected.</p></article>
-        <article className="dashboard-stat-card"><span><Clock3 size={17} /></span><small>Active orders</small><strong>Unavailable</strong><p>Order status tracking is not available.</p></article>
-        <article className="dashboard-stat-card"><span><PackageCheck size={17} /></span><small>Completed orders</small><strong>Unavailable</strong><p>Completed orders are not stored.</p></article>
-        <article className="dashboard-stat-card"><span><BookmarkCheck size={17} /></span><small>Saved services</small><strong>{savedServices.length}</strong><p>Saved in this browser session only.</p></article>
+      <section className="dashboard-welcome-card" aria-labelledby="customer-welcome-title">
+        <div className="dashboard-welcome-copy">
+          <span className="market-eyebrow">YOUR CLIENT WORKSPACE</span>
+          <h2 id="customer-welcome-title">{dashboardDisplayName ? `Welcome back, ${dashboardDisplayName}` : "Welcome to your dashboard"}</h2>
+          <p>Explore services, keep track of your shortlist, and manage your client profile.</p>
+          {dashboardProfileLoading && <p className="dashboard-profile-loading" role="status">Loading your account profile…</p>}
+          {dashboardProfileError && (
+            <div className="dashboard-profile-load-error" role="alert">
+              <span>{dashboardProfileError}</span>
+              <button type="button" onClick={() => setDashboardProfileLoadAttempt((attempt) => attempt + 1)}>Try again</button>
+            </div>
+          )}
+        </div>
+        <div className="dashboard-welcome-mark" aria-hidden="true"><Sparkles size={25} /></div>
       </section>
+
+      <section className="dashboard-stat-grid" aria-label="Order summary">
+        {renderOrderStatistics()}
+      </section>
+
       <div className="dashboard-overview-grid">
-        <section className="dashboard-panel">
-          <DashboardSectionHeading eyebrow="ORDER ACTIVITY" title="Recent order activity" />
-          <EmptyState icon={ShoppingBag} title="No order activity yet">
-            There is no order backend connected. Orders submitted from checkout are not saved.
-          </EmptyState>
-        </section>
-        <section className="dashboard-panel">
+        <section className="dashboard-panel dashboard-recent-orders">
           <DashboardSectionHeading
-            eyebrow="YOUR SHORTLIST"
-            title="Recently viewed services"
-            action={recentlyViewed.length > 0 && <button className="dashboard-text-link" type="button" onClick={() => setActiveSection("saved")}>Saved services <ArrowRight size={14} /></button>}
+            eyebrow="ORDER ACTIVITY"
+            title="Recent orders"
+            description="Order history is shown only when real records are available."
+            action={orders.length > 0 && <button className="dashboard-text-link" type="button" onClick={() => setActiveSection("orders")}>All orders <ArrowRight size={14} /></button>}
           />
-          {recentlyViewed.length === 0
-            ? <EmptyState icon={Clock3} title="No recently viewed services">Open a service page and it will appear here for this browser session.</EmptyState>
-            : <div className="dashboard-recent-list">{recentlyViewed.slice(0, 3).map((service) => (
-              <Link className="dashboard-recent-row" to={`/services/${service.id}`} key={service.id}>
-                <img src={service.image} alt="" /><span><strong>{service.title}</strong><small>{service.seller}</small></span><ArrowRight size={14} />
-              </Link>
-            ))}</div>}
+          {authLoading || ordersLoading
+            ? <div className="dashboard-order-list" role="status" aria-label="Loading recent orders"><OrderCardSkeleton /><OrderCardSkeleton /></div>
+            : !user
+              ? <EmptyState icon={ShoppingBag} title="Sign in to view your orders">Your recent orders are private to your NexTech account.</EmptyState>
+              : ordersError
+                ? <div className="dashboard-orders-error" role="alert">
+                  <p>{ordersError}</p>
+                  <button type="button" onClick={() => setOrdersLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+                </div>
+                : orders.length === 0
+                  ? <EmptyState icon={ShoppingBag} title="No orders yet">Real orders linked to your account will appear here.</EmptyState>
+                  : <div className="dashboard-order-list">{orders.slice(0, 3).map((order) => <OrderCard key={order.id} order={order} />)}</div>}
+        </section>
+        <section className="dashboard-panel dashboard-quick-actions-panel">
+          <DashboardSectionHeading eyebrow="GET STARTED" title="Quick actions" />
+          <div className="dashboard-quick-actions">
+            <Link className="dashboard-quick-action" to="/services">
+              <span><Search size={17} /></span>
+              <strong>Explore Services</strong>
+              <ArrowRight size={16} />
+            </Link>
+            <button className="dashboard-quick-action" type="button" onClick={() => setActiveSection("orders")}>
+              <span><ShoppingBag size={17} /></span>
+              <strong>View My Orders</strong>
+              <ArrowRight size={16} />
+            </button>
+            <Link className="dashboard-quick-action" to="/customer/profile">
+              <span><PencilLine size={17} /></span>
+              <strong>Edit Profile</strong>
+              <ArrowRight size={16} />
+            </Link>
+          </div>
         </section>
       </div>
+
+      <section className="dashboard-panel">
+        <DashboardSectionHeading
+          eyebrow="YOUR SHORTLIST"
+          title="Recently viewed services"
+          action={recentlyViewed.length > 0 && <button className="dashboard-text-link" type="button" onClick={() => setActiveSection("saved")}>Saved services <ArrowRight size={14} /></button>}
+        />
+        {recentlyViewed.length === 0
+          ? <EmptyState icon={Clock3} title="No recently viewed services">Open a service page and it will appear here for this browser session.</EmptyState>
+          : <div className="dashboard-recent-list">{recentlyViewed.slice(0, 3).map((service) => (
+            <Link className="dashboard-recent-row" to={`/services/${service.id}`} key={service.id}>
+              <img src={service.image} alt="" /><span><strong>{service.title}</strong><small>{service.seller}</small></span><ArrowRight size={14} />
+            </Link>
+          ))}</div>}
+      </section>
     </>
   );
 
@@ -435,20 +870,23 @@ export default function CustomerDashboard() {
   );
 
   let content = renderOverview();
-  if (["orders", "active-orders", "completed-orders"].includes(activeSection)) content = renderOrders();
-  else if (activeSection === "saved") content = renderSavedServices();
-  else if (activeSection === "reviews") content = renderReviews();
-  else if (activeSection === "profile") content = renderProfile();
-  else if (activeSection === "settings") content = <AccountSettings preferences={preferences} setPreferences={setPreferences} />;
+  if (orderId) content = renderOrderDetails();
+  else if (["orders", "active-orders", "completed-orders"].includes(currentSection)) content = renderOrders();
+  else if (currentSection === "saved") content = renderSavedServices();
+  else if (currentSection === "reviews") content = renderReviews();
+  else if (currentSection === "profile") content = renderProfile();
+  else if (currentSection === "settings") content = <AccountSettings preferences={preferences} setPreferences={setPreferences} />;
+
+  const displayName = dashboardDisplayName.trim();
 
   return (
     <DashboardLayout
       role="CUSTOMER"
-      displayName={customerProfile.displayName || "Customer"}
+      displayName={displayName || "Customer"}
       avatar={profilePictureUrl}
-      activeSection={activeSection}
+      activeSection={currentSection}
       navigation={navigation}
-      onSelect={setActiveSection}
+      onSelect={selectDashboardSection}
     >
       {content}
     </DashboardLayout>

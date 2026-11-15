@@ -84,7 +84,7 @@ export default function DashboardLayout({
       <header className="dashboard-page-heading">
         <div>
           <span className="market-eyebrow">{role} WORKSPACE · PREVIEW</span>
-          <h1>{activeSection === "overview" ? `Welcome, ${displayName}.` : navigation.find((item) => item.key === activeSection)?.label || "Dashboard"}</h1>
+          <h1>{activeSection === "overview" ? `Welcome, ${displayName}.` : activeSection === "order-details" ? "Order Details" : navigation.find((item) => item.key === activeSection)?.label || "Dashboard"}</h1>
           <p>{user ? "Your NexTech account is signed in; marketplace activity here is a preview." : "This dashboard is a local preview. Sign in to use your Supabase account."}</p>
         </div>
         <div className="dashboard-heading-profile">
@@ -95,7 +95,7 @@ export default function DashboardLayout({
 
       <div className="dashboard-demo-banner" role="note">
         <strong>{user ? "Supabase account active" : "Marketplace preview"}</strong>
-        <span>{user ? "Your login is managed by Supabase. Orders, reviews, payments, listings, and dashboard activity are not connected to a backend." : "This preview does not save account activity. Orders, reviews, payments, and dashboard activity are not connected to a backend."}</span>
+        <span>{user ? "Your login and profile are managed by Supabase. Orders are read from your account when the orders migration is installed; checkout does not yet create orders." : "Sign in to load your Supabase profile and private order history. Checkout does not yet create orders."}</span>
       </div>
 
       <div className="dashboard-layout">

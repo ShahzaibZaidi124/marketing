@@ -32,7 +32,10 @@ import DashboardLayout from "../components/DashboardLayout.jsx";
 import GoogleOAuthButton from "../components/GoogleOAuthButton.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
+  duplicateUsernameMessage,
+  getDuplicateUsernameErrorMessage,
   getUserProfile,
+  isClientProfileUsernameTaken,
   saveUserProfile,
   signInWithEmail,
   signUpWithEmail,
@@ -216,12 +219,10 @@ export function SellerRegistration() {
     try {
       let accountUser = user;
       if (user) {
-        accountUser = await updateUserMetadata({
-          full_name: fullName,
-          role: "seller",
-          username: sellerDraft.username,
-          seller_details: sellerDetails,
-        });
+        if (await isClientProfileUsernameTaken({ userId: user.id, username: sellerDraft.username })) {
+          setErrors((current) => ({ ...current, username: duplicateUsernameMessage }));
+          return;
+        }
       } else {
         const signup = await signUpWithEmail({
           email,
@@ -247,8 +248,21 @@ export function SellerRegistration() {
         role: "seller",
         sellerDetails,
       });
+      if (user) {
+        accountUser = await updateUserMetadata({
+          full_name: fullName,
+          role: "seller",
+          username: sellerDraft.username,
+          seller_details: sellerDetails,
+        });
+      }
       navigate("/seller/profile", { state: { sellerDraft } });
     } catch (registrationError) {
+      const duplicateMessage = getDuplicateUsernameErrorMessage(registrationError);
+      if (duplicateMessage) {
+        setErrors((current) => ({ ...current, username: duplicateMessage }));
+        return;
+      }
       const details = registrationError instanceof Error
         ? registrationError.message
         : "Please try again.";
@@ -491,19 +505,23 @@ export function SellerProfileSetup() {
     setProfileSaving(true);
     setProfileSaveError("");
     try {
-      const updatedUser = await updateUserMetadata({
-        full_name: profile.displayName.trim(),
-        role: "seller",
-        username: sellerDraft.username,
-        seller_details: sellerDetails,
-      });
+      if (await isClientProfileUsernameTaken({ userId: user.id, username: sellerDraft.username })) {
+        setProfileSaveError(duplicateUsernameMessage);
+        return;
+      }
       await saveUserProfile({
-        userId: updatedUser.id,
-        email: updatedUser.email || user.email,
+        userId: user.id,
+        email: user.email || "",
         fullName: profile.displayName.trim(),
         username: sellerDraft.username,
         role: "seller",
         sellerDetails,
+      });
+      await updateUserMetadata({
+        full_name: profile.displayName.trim(),
+        role: "seller",
+        username: sellerDraft.username,
+        seller_details: sellerDetails,
       });
       navigate("/seller/dashboard", {
         state: {
@@ -512,8 +530,9 @@ export function SellerProfileSetup() {
         },
       });
     } catch (saveError) {
+      const duplicateMessage = getDuplicateUsernameErrorMessage(saveError);
       setProfileSaveError(saveError instanceof Error
-        ? saveError.message
+        ? duplicateMessage || saveError.message
         : "Your seller profile could not be saved. Please try again.");
     } finally {
       setProfileSaving(false);

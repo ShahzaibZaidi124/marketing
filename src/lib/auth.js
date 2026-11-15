@@ -85,6 +85,16 @@ const profilePictureExtensions = {
   "image/webp": "webp",
 };
 const clientProfileColumns = "id, email, full_name, username, role, country, city, bio, services_interested, project_interests, avatar_path";
+export const duplicateUsernameMessage = "This username is already taken. Please choose another.";
+
+export function getDuplicateUsernameErrorMessage(error) {
+  if (error?.code !== "23505") return "";
+  const errorDetails = [error.constraint, error.message, error.details]
+    .filter((value) => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+  return errorDetails.includes("username") ? duplicateUsernameMessage : "";
+}
 
 export function getClientProfilePictureValidationError(file) {
   if (!file || typeof file.type !== "string" || !Number.isFinite(file.size) || file.size < 0) {
@@ -106,6 +116,26 @@ export async function verifyAuthenticatedUser(userId) {
   if (!data.user) throw new Error("Please sign in again before changing your profile.");
   if (data.user.id !== userId) throw new Error("You can only change your own profile.");
   return data.user;
+}
+
+export async function isClientProfileUsernameTaken({ userId, username }) {
+  await verifyAuthenticatedUser(userId);
+  const normalizedUsername = typeof username === "string" ? username.trim().toLowerCase() : "";
+  if (!normalizedUsername) throw new Error("A username is required to check availability.");
+
+  const { data, error } = await getSupabaseClient().rpc("is_profile_username_taken", {
+    candidate_username: normalizedUsername,
+  });
+  if (error) {
+    if (error.code === "PGRST202" || error.message?.includes("is_profile_username_taken")) {
+      throw new Error("Username availability checking is not configured. Apply the NexTech username migration, then try again.");
+    }
+    throw error;
+  }
+  if (typeof data !== "boolean") {
+    throw new Error("The username availability check returned an invalid response.");
+  }
+  return data;
 }
 
 function assertOwnedProfilePicturePath(userId, path) {

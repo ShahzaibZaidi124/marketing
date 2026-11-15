@@ -23,8 +23,11 @@ import { useNavigate } from "react-router-dom";
 import { ClientProfileCard, ClientProfileDetail, ClientProfileInput } from "../components/ClientProfileCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
+  duplicateUsernameMessage,
+  getDuplicateUsernameErrorMessage,
   getClientProfile,
   getClientProfilePictureValidationError,
+  isClientProfileUsernameTaken,
   removeClientProfilePicture,
   saveClientProfile,
   updateUserMetadata,
@@ -315,8 +318,14 @@ export default function ClientProfile() {
     const role = user.user_metadata?.role === "seller" ? "seller" : "customer";
     const previousAvatarPath = profileFields.avatarPath;
     let uploadedAvatarPath = "";
+    let profileSaved = false;
     try {
       await verifyAuthenticatedUser(user.id);
+      if (await isClientProfileUsernameTaken({ userId: user.id, username })) {
+        setFieldErrors((current) => ({ ...current, username: duplicateUsernameMessage }));
+        document.getElementById("client-profile-username")?.focus();
+        return;
+      }
       if (selectedAvatarFile) {
         uploadedAvatarPath = await uploadClientProfilePicture(user.id, selectedAvatarFile);
       }
@@ -325,16 +334,6 @@ export default function ClientProfile() {
         : avatarRemoved
           ? null
           : profileFields.avatarPath || null;
-      await updateUserMetadata({
-        full_name: fullName,
-        username,
-        country,
-        city,
-        about: bio,
-        services_interested: serviceInterests,
-        project_interests: projectInterests,
-        role,
-      });
       await saveClientProfile({
         userId: user.id,
         email: user.email || "",
@@ -351,10 +350,21 @@ export default function ClientProfile() {
           avatarPath,
         },
       });
+      profileSaved = true;
       setProfileFields({ fullName, username, country, city, avatarPath: avatarPath || "" });
       setProfileDraft({ fullName, username, country, city, avatarPath: avatarPath || "" });
       setAboutFields({ bio, serviceInterests, projectInterests });
       setAboutDraft({ bio, serviceInterests, projectInterests });
+      await updateUserMetadata({
+        full_name: fullName,
+        username,
+        country,
+        city,
+        about: bio,
+        services_interested: serviceInterests,
+        project_interests: projectInterests,
+        role,
+      });
       if (selectedAvatarFile || avatarRemoved) {
         await refreshProfilePicture();
         setAvatarError("");
@@ -373,15 +383,22 @@ export default function ClientProfile() {
       }
       setProfileNotice("Your profile information was saved successfully.");
     } catch (error) {
-      let message = error instanceof Error ? error.message : "Your profile could not be saved. Please try again.";
-      if (uploadedAvatarPath) {
+      const duplicateMessage = getDuplicateUsernameErrorMessage(error);
+      if (duplicateMessage) {
+        setFieldErrors((current) => ({ ...current, username: duplicateMessage }));
+        document.getElementById("client-profile-username")?.focus();
+      }
+      let message = duplicateMessage || (error instanceof Error ? error.message : "Your profile could not be saved. Please try again.");
+      if (uploadedAvatarPath && !profileSaved) {
         try {
           await removeClientProfilePicture(user.id, uploadedAvatarPath);
         } catch (cleanupError) {
           message += ` The newly uploaded image could not be removed: ${cleanupError instanceof Error ? cleanupError.message : "unknown error"}`;
         }
       }
-      setProfileError(message);
+      setProfileError(duplicateMessage ? "" : profileSaved
+        ? `Your profile was saved, but account metadata could not be updated: ${message}`
+        : message);
     } finally {
       savingProfileRef.current = false;
       setSavingProfile(false);

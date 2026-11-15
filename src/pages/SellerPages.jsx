@@ -371,7 +371,7 @@ export function SellerRegistration() {
 export function SellerProfileSetup() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, profilePictureUrl } = useAuth();
   const sellerDraft = location.state?.sellerDraft;
   const [profile, setProfile] = useState(() => ({
     displayName: sellerDraft?.displayName || sellerDraft?.fullName || "",
@@ -394,6 +394,7 @@ export function SellerProfileSetup() {
   const [profileSaving, setProfileSaving] = useState(false);
   const completedFields = ["displayName", "professionalTitle", "about", "skills", "experience"];
   const completion = Math.round((completedFields.filter((field) => profile[field].trim()).length / completedFields.length) * 100);
+  const displayAvatar = profile.avatar.startsWith("blob:") ? profile.avatar : profilePictureUrl;
 
   if (authLoading) {
     return <main className="market-section seller-page seller-login-page"><p role="status">Checking your Supabase session…</p></main>;
@@ -542,7 +543,7 @@ export function SellerProfileSetup() {
           </div>
 
           <div className="seller-profile-photo-row">
-            <span className="seller-profile-photo">{profile.avatar ? <img src={profile.avatar} alt="Seller profile preview" /> : <UserRound size={24} />}</span>
+            <span className="seller-profile-photo">{displayAvatar ? <img src={displayAvatar} alt="Seller profile preview" /> : <UserRound size={24} />}</span>
             <div><strong>Profile picture</strong><p>JPG, PNG or WebP · Up to 5 MB · Local preview only</p>
               <label className="seller-upload-button" htmlFor="sellerProfilePhoto">Change picture</label>
               <input className="seller-visually-hidden" id="sellerProfilePhoto" type="file" accept="image/jpeg,image/png,image/webp" onChange={updateProfilePicture} aria-invalid={Boolean(errors.avatar)} aria-describedby={errors.avatar ? "profile-avatar-error" : undefined} />
@@ -626,7 +627,7 @@ export function SellerProfileSetup() {
 
         <aside className="seller-profile-preview">
           <span className="market-eyebrow">PROFILE PREVIEW</span>
-          <div className="seller-profile-preview-avatar">{profile.avatar ? <img src={profile.avatar} alt="" /> : <UserRound size={24} />}</div>
+          <div className="seller-profile-preview-avatar">{displayAvatar ? <img src={displayAvatar} alt="" /> : <UserRound size={24} />}</div>
           <h2>{profile.displayName || "Your display name"}</h2>
           <p>{profile.professionalTitle || "Your professional title"}</p>
           {profile.location && <span className="seller-profile-preview-location"><MapPin size={13} /> {profile.location}</span>}
@@ -646,7 +647,7 @@ export function SellerProfileSetup() {
 export function SellerDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, profilePictureUrl } = useAuth();
   const userId = user?.id;
   const userEmail = user?.email;
   const sessionSellerProfile = location.state?.sellerProfile;
@@ -739,6 +740,7 @@ export function SellerDashboard() {
   }
   if (!sellerProfile) return <Navigate to="/seller/register" replace />;
 
+  const dashboardAvatar = profilePictureUrl || sellerProfile.avatar;
   const ownedServices = getOwnedServices(sellerProfile.username);
   const publishedServices = ownedServices.filter((service) => service.status === "published");
   const draftServices = ownedServices.filter((service) => service.status === "draft");
@@ -831,7 +833,7 @@ export function SellerDashboard() {
         <article className="dashboard-stat-card"><span><MessageCircle size={17} /></span><small>Messages</small><strong>Demo inbox</strong><p>No real unread counts are available.</p></article>
       </section>
       <section className="dashboard-seller-profile-card">
-        <div className="dashboard-seller-avatar">{sellerProfile.avatar ? <img src={sellerProfile.avatar} alt="" /> : <UserRound size={24} />}</div>
+        <div className="dashboard-seller-avatar">{dashboardAvatar ? <img src={dashboardAvatar} alt="" /> : <UserRound size={24} />}</div>
         <div><span className="market-eyebrow">SELLER PROFILE PREVIEW</span><h2>{sellerProfile.displayName}</h2><p>{sellerProfile.professionalTitle}</p>
           <div className="seller-profile-skill-list">{(sellerProfile.skills || []).map((skill) => <span key={skill}>{skill}</span>)}</div>
         </div>
@@ -942,7 +944,7 @@ export function SellerDashboard() {
     <DashboardLayout
       role="SELLER"
       displayName={sellerProfile.displayName}
-      avatar={sellerProfile.avatar}
+      avatar={dashboardAvatar}
       activeSection={activeSection}
       navigation={navigation}
       onSelect={selectSection}

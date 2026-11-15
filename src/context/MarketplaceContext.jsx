@@ -9,10 +9,12 @@ export function MarketplaceProvider({ children }) {
   const [recentlyViewedServiceIds, setRecentlyViewedServiceIds] = useState([]);
   const [customerProfile, setCustomerProfile] = useState({
     displayName: "Customer",
+    username: "",
     email: "",
-    phone: "",
+    country: "",
+    city: "",
     description: "",
-    avatar: "",
+    interests: "",
   });
   const publishedServices = useMemo(
     () => sellerServices.filter((service) => service.status === "published"),

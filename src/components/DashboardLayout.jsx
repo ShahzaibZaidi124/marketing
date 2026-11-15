@@ -58,10 +58,11 @@ export default function DashboardLayout({
   children,
 }) {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut, profilePictureUrl } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
   const initials = displayName.trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
+  const displayAvatar = profilePictureUrl || avatar;
 
   const handleLogout = async () => {
     if (signingOut) return;
@@ -87,7 +88,7 @@ export default function DashboardLayout({
           <p>{user ? "Your NexTech account is signed in; marketplace activity here is a preview." : "This dashboard is a local preview. Sign in to use your Supabase account."}</p>
         </div>
         <div className="dashboard-heading-profile">
-          {avatar ? <img src={avatar} alt="" /> : <span aria-hidden="true">{initials || "TS"}</span>}
+          {displayAvatar ? <img src={displayAvatar} alt="" /> : <span aria-hidden="true">{initials || "TS"}</span>}
           <div><strong>{displayName}</strong><small>{role} {user ? "account" : "preview"}</small></div>
         </div>
       </header>
@@ -100,7 +101,7 @@ export default function DashboardLayout({
       <div className="dashboard-layout">
         <aside className="dashboard-sidebar" aria-label={`${role} dashboard navigation`}>
           <div className="dashboard-sidebar-profile">
-            {avatar ? <img src={avatar} alt="" /> : <span aria-hidden="true">{initials || "TS"}</span>}
+            {displayAvatar ? <img src={displayAvatar} alt="" /> : <span aria-hidden="true">{initials || "TS"}</span>}
             <div><strong>{displayName}</strong><small>{role} {user ? "account" : "preview"}</small></div>
           </div>
           <nav className="dashboard-nav">

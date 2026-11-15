@@ -19,7 +19,7 @@ export default function Header() {
   const [signOutError, setSignOutError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState("");
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, profilePictureUrl } = useAuth();
 
   const closeMenu = () => setMenuOpen(false);
   const handleSignIn = async () => {
@@ -55,6 +55,7 @@ export default function Header() {
     || user?.user_metadata?.name
     || user?.email
     || "Signed in";
+  const accountInitials = accountLabel.trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
 
   return (
     <header className="site-header">
@@ -89,7 +90,10 @@ export default function Header() {
           ) : user ? (
             <>
               <span className="nav-account" title={accountLabel} aria-label={`Signed in as ${accountLabel}`}>
-                {accountLabel}
+                {profilePictureUrl
+                  ? <img className="nav-account-avatar" src={profilePictureUrl} alt="" />
+                  : <span className="nav-account-avatar nav-account-avatar-fallback" aria-hidden="true">{accountInitials || "U"}</span>}
+                <span className="nav-account-name">{accountLabel}</span>
               </span>
               <button
                 className="nav-login nav-logout"

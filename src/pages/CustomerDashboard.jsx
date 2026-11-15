@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Bookmark,
   BookmarkCheck,
+  CalendarDays,
   CheckCircle2,
   Clock3,
   ExternalLink,
   LayoutDashboard,
   LogOut,
+  MapPin,
   MessageCircle,
   PackageCheck,
   Settings,
@@ -16,9 +18,11 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
+import { saveClientProfile, updateUserEmail, updateUserMetadata, updateUserPassword } from "../lib/auth.js";
 
 const customerNavigation = [
   { key: "overview", label: "Overview", Icon: LayoutDashboard },
@@ -28,13 +32,11 @@ const customerNavigation = [
   { key: "messages", label: "Messages", Icon: MessageCircle, to: "/messages?role=customer" },
   { key: "saved", label: "Saved Services", Icon: Bookmark },
   { key: "reviews", label: "My Reviews", Icon: Star },
-  { key: "profile", label: "Edit Profile", Icon: UserRound },
+  { key: "profile", label: "Profile", Icon: UserRound, to: "/customer/profile" },
   { key: "settings", label: "Account Settings", Icon: Settings },
 ];
 
 const orderStatuses = ["All", "Pending", "In Progress", "Delivered", "Completed", "Cancelled"];
-const allowedAvatarTypes = ["image/jpeg", "image/png", "image/webp"];
-const maxAvatarSize = 5 * 1024 * 1024;
 
 function EmptyState({ icon: Icon, title, children, action }) {
   return (
@@ -83,24 +85,74 @@ function CustomerServiceCard({ service, onRemove }) {
 }
 
 function AccountSettings({ preferences, setPreferences }) {
+  const { user } = useAuth();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const changePassword = async (event) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordNotice("");
+    if (!user) {
+      setPasswordError("Sign in to change your account password.");
+      return;
+    }
+    if (!password) {
+      setPasswordError("Enter a new password.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setPasswordError("The passwords do not match.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await updateUserPassword(password);
+      setPassword("");
+      setConfirmPassword("");
+      setPasswordNotice("Your password was changed.");
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : "Your password could not be changed. Please try again.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
-    <section className="dashboard-panel">
-      <DashboardSectionHeading
-        eyebrow="YOUR PREFERENCES"
-        title="Account settings"
-        description="These settings apply only to this browser preview."
-      />
-      <div className="dashboard-settings-list">
-        <label><span><strong>Order updates</strong><small>There is no order service connected to send notifications.</small></span><input type="checkbox" checked={preferences.orderUpdates} onChange={(event) => setPreferences((current) => ({ ...current, orderUpdates: event.target.checked }))} /></label>
-        <label><span><strong>Marketplace announcements</strong><small>Optional product and marketplace updates.</small></span><input type="checkbox" checked={preferences.marketplaceUpdates} onChange={(event) => setPreferences((current) => ({ ...current, marketplaceUpdates: event.target.checked }))} /></label>
-      </div>
-      <p className="dashboard-inline-note">Preference changes are kept in page state only and do not update a server account.</p>
-    </section>
+    <>
+      <section className="dashboard-panel">
+        <DashboardSectionHeading
+          eyebrow="YOUR PREFERENCES"
+          title="Account settings"
+          description="Manage your account security and marketplace preferences."
+        />
+        <div className="dashboard-settings-list">
+          <label><span><strong>Order updates</strong><small>There is no order service connected to send notifications.</small></span><input type="checkbox" checked={preferences.orderUpdates} onChange={(event) => setPreferences((current) => ({ ...current, orderUpdates: event.target.checked }))} /></label>
+          <label><span><strong>Marketplace announcements</strong><small>Optional product and marketplace updates.</small></span><input type="checkbox" checked={preferences.marketplaceUpdates} onChange={(event) => setPreferences((current) => ({ ...current, marketplaceUpdates: event.target.checked }))} /></label>
+        </div>
+        <p className="dashboard-inline-note">Preference changes are kept in page state only and do not update a server account.</p>
+      </section>
+      <section className="dashboard-panel">
+        <DashboardSectionHeading eyebrow="ACCOUNT SECURITY" title="Change password" description={user ? "Choose a new password for your client account." : "Sign in to update your account password."} />
+        <form className="dashboard-password-form" onSubmit={changePassword}>
+          <label>New password<input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required disabled={!user || savingPassword} /></label>
+          <label>Confirm new password<input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required disabled={!user || savingPassword} /></label>
+          {passwordError && <p className="dashboard-form-error" role="alert">{passwordError}</p>}
+          {passwordNotice && <p className="dashboard-form-success" role="status">{passwordNotice}</p>}
+          <button className="market-button market-button-primary" type="submit" disabled={!user || savingPassword}>{savingPassword ? "Updating…" : "Update password"}</button>
+        </form>
+      </section>
+    </>
   );
 }
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, profilePictureUrl } = useAuth();
   const {
     allServices,
     savedServiceIds,
@@ -109,12 +161,31 @@ export default function CustomerDashboard() {
     customerProfile,
     updateCustomerProfile,
   } = useMarketplace();
-  const [activeSection, setActiveSection] = useState("overview");
+  const [activeSection, setActiveSection] = useState(() => location.state?.section === "profile" ? "profile" : "overview");
   const [orderStatus, setOrderStatus] = useState("All");
   const [profileForm, setProfileForm] = useState(customerProfile);
   const [profileError, setProfileError] = useState("");
   const [profileNotice, setProfileNotice] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [preferences, setPreferences] = useState({ orderUpdates: true, marketplaceUpdates: false });
+  const hydratedUserId = useRef("");
+
+  useEffect(() => {
+    if (!user || hydratedUserId.current === user.id) return;
+    hydratedUserId.current = user.id;
+    const metadata = user.user_metadata || {};
+    const profile = {
+      displayName: metadata.full_name || metadata.name || "",
+      username: metadata.username || "",
+      email: user.email || "",
+      country: metadata.country || "",
+      city: metadata.city || "",
+      description: metadata.about || "",
+      interests: metadata.services_interested || "",
+    };
+    setProfileForm((current) => ({ ...current, ...profile }));
+    updateCustomerProfile(profile);
+  }, [user, updateCustomerProfile]);
 
   const savedServices = useMemo(
     () => savedServiceIds.map((id) => allServices.find((service) => service.id === id)).filter(Boolean),
@@ -132,26 +203,7 @@ export default function CustomerDashboard() {
     setProfileNotice("");
   };
 
-  const updateAvatar = (event) => {
-    const file = event.target.files?.[0];
-    setProfileError("");
-    if (!file) return;
-    if (!allowedAvatarTypes.includes(file.type)) {
-      setProfileError("Choose a JPG, PNG, or WebP profile picture.");
-      event.target.value = "";
-      return;
-    }
-    if (file.size > maxAvatarSize) {
-      setProfileError("Profile pictures must be 5 MB or smaller.");
-      event.target.value = "";
-      return;
-    }
-    const previousAvatar = profileForm.avatar;
-    if (previousAvatar.startsWith("blob:")) URL.revokeObjectURL(previousAvatar);
-    setProfileForm((current) => ({ ...current, avatar: URL.createObjectURL(file) }));
-  };
-
-  const saveProfile = (event) => {
+  const saveProfile = async (event) => {
     event.preventDefault();
     if (!profileForm.displayName.trim()) {
       setProfileError("Enter a display name.");
@@ -163,16 +215,65 @@ export default function CustomerDashboard() {
       document.getElementById("customer-email")?.focus();
       return;
     }
-    const nextProfile = { ...profileForm, displayName: profileForm.displayName.trim(), email: profileForm.email.trim() };
-    updateCustomerProfile(nextProfile);
-    setProfileForm(nextProfile);
     setProfileError("");
-    setProfileNotice("Your profile preview was updated in this browser session.");
+    setProfileNotice("");
+    const nextProfile = {
+      ...profileForm,
+      displayName: profileForm.displayName.trim(),
+      username: profileForm.username.trim().toLowerCase(),
+      email: profileForm.email.trim(),
+      country: profileForm.country.trim(),
+      city: profileForm.city.trim(),
+      description: profileForm.description.trim(),
+      interests: profileForm.interests.trim(),
+    };
+    setSavingProfile(true);
+    try {
+      if (user) {
+        const updatedUser = profileForm.email.trim() !== (user.email || "")
+          ? await updateUserEmail(nextProfile.email)
+          : user;
+        const savedUser = await updateUserMetadata({
+          full_name: nextProfile.displayName,
+          username: nextProfile.username,
+          country: nextProfile.country,
+          city: nextProfile.city,
+          about: nextProfile.description,
+          services_interested: nextProfile.interests,
+          role: user.user_metadata?.role === "seller" ? "seller" : "customer",
+        });
+        await saveClientProfile({
+          userId: savedUser.id,
+          email: updatedUser.email || user.email,
+          role: user.user_metadata?.role === "seller" ? "seller" : "customer",
+          sellerDetails: user.user_metadata?.seller_details || {},
+          profile: {
+            fullName: nextProfile.displayName,
+            username: nextProfile.username,
+            country: nextProfile.country,
+            city: nextProfile.city,
+            bio: nextProfile.description,
+            servicesInterested: nextProfile.interests,
+          },
+        });
+        setProfileNotice(profileForm.email.trim() !== (user.email || "")
+          ? "Your profile was saved. Check your email to confirm the new address."
+          : "Your client profile was saved to your account.");
+      } else {
+        setProfileNotice("Your profile preview was updated in this browser session.");
+      }
+      updateCustomerProfile(nextProfile);
+      setProfileForm(nextProfile);
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Your profile could not be saved. Please try again.");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const navigation = [
     ...customerNavigation,
-    { key: "logout", label: "Logout", Icon: LogOut },
+    { key: "logout", label: "Log out", Icon: LogOut },
   ];
 
   const renderOrders = () => (
@@ -251,22 +352,33 @@ export default function CustomerDashboard() {
 
   const renderProfile = () => (
     <section className="dashboard-panel">
-      <DashboardSectionHeading eyebrow="CUSTOMER PROFILE" title="Edit profile" description="Edit the profile preview shown in this browser session." />
+      <DashboardSectionHeading eyebrow="CLIENT PROFILE" title="Edit profile" description="Keep your client details and service preferences up to date." />
       <form className="dashboard-profile-form" onSubmit={saveProfile} noValidate>
+        <div className="dashboard-profile-summary">
+          <strong>Client account</strong>
+          <span>Member since {user?.created_at
+            ? new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date(user.created_at))
+            : "November 2026"}</span>
+          {(profileForm.country || profileForm.city) && <div><MapPin size={13} /> {[profileForm.city, profileForm.country].filter(Boolean).join(", ")}</div>}
+          <div><CalendarDays size={13} /> Account type: Client</div>
+        </div>
         <div className="dashboard-avatar-editor">
-          {profileForm.avatar ? <img src={profileForm.avatar} alt="Customer profile preview" /> : <span><UserRound size={25} /></span>}
-          <label htmlFor="customer-avatar">Change picture <small>JPG, PNG, or WebP · Up to 5 MB · Local only</small></label>
-          <input id="customer-avatar" type="file" accept="image/jpeg,image/png,image/webp" onChange={updateAvatar} />
+          {profilePictureUrl ? <img src={profilePictureUrl} alt="Customer profile" /> : <span><UserRound size={25} /></span>}
+          <div className="dashboard-avatar-editor-copy"><strong>Profile picture</strong><small>Using your NexTech picture or Google account photo.</small></div>
+          <Link className="dashboard-avatar-editor-link" to="/customer/profile">Edit picture</Link>
         </div>
         <div className="dashboard-form-grid">
-          <label>Display name<input id="customer-display-name" name="displayName" value={profileForm.displayName} onChange={updateProfileField} autoComplete="name" required /></label>
+          <label>Full name<input id="customer-display-name" name="displayName" value={profileForm.displayName} onChange={updateProfileField} autoComplete="name" required /></label>
+          <label>Username<input name="username" value={profileForm.username} onChange={updateProfileField} autoComplete="username" /></label>
           <label>Email address<input id="customer-email" name="email" type="email" value={profileForm.email} onChange={updateProfileField} autoComplete="email" /></label>
-          <label>Contact number<input name="phone" type="tel" value={profileForm.phone} onChange={updateProfileField} autoComplete="tel" /></label>
-          <label className="dashboard-form-full">About you<textarea name="description" rows="4" value={profileForm.description} onChange={updateProfileField} placeholder="Add a short introduction." /></label>
+          <label>Country<input name="country" value={profileForm.country} onChange={updateProfileField} autoComplete="country-name" /></label>
+          <label>City<input name="city" value={profileForm.city} onChange={updateProfileField} autoComplete="address-level2" /></label>
+          <label className="dashboard-form-full">About me<textarea name="description" rows="3" value={profileForm.description} onChange={updateProfileField} placeholder="Add a short introduction." /></label>
+          <label className="dashboard-form-full">Services you're interested in<textarea name="interests" rows="3" value={profileForm.interests} onChange={updateProfileField} placeholder="For example: websites, branding, or e-commerce." /></label>
         </div>
         {profileError && <p className="dashboard-form-error" role="alert">{profileError}</p>}
         {profileNotice && <p className="dashboard-form-success" role="status">{profileNotice}</p>}
-        <button className="market-button market-button-primary" type="submit">Save profile preview <ArrowRight size={15} /></button>
+        <button className="market-button market-button-primary" type="submit" disabled={savingProfile}>{savingProfile ? "Saving…" : "Save profile"} <ArrowRight size={15} /></button>
       </form>
     </section>
   );
@@ -282,7 +394,7 @@ export default function CustomerDashboard() {
     <DashboardLayout
       role="CUSTOMER"
       displayName={customerProfile.displayName || "Customer"}
-      avatar={customerProfile.avatar}
+      avatar={profilePictureUrl}
       activeSection={activeSection}
       navigation={navigation}
       onSelect={setActiveSection}

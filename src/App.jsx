@@ -13,6 +13,7 @@ import ServiceDetails from "./pages/ServiceDetails.jsx";
 import ServiceOrder from "./pages/ServiceOrder.jsx";
 import Messages from "./pages/Messages.jsx";
 import CustomerDashboard from "./pages/CustomerDashboard.jsx";
+import ClientProfile from "./pages/ClientProfile.jsx";
 import {
   SellerDashboard,
   SellerIntro,
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/services/:id" element={<ServiceDetails />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+        <Route path="/customer/profile" element={<ClientProfile />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/seller" element={<SellerIntro />} />
         <Route path="/seller/register" element={<SellerRegistration />} />

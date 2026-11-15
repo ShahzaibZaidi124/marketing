@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AtSign,
   BadgeCheck,
@@ -31,6 +31,7 @@ import {
   uploadClientProfilePicture,
   verifyAuthenticatedUser,
 } from "../lib/auth.js";
+import { validateClientProfileDraft } from "../lib/profileValidation.js";
 
 const maxBioLength = 300;
 
@@ -83,6 +84,9 @@ export default function ClientProfile() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileNotice, setProfileNotice] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const savingProfileRef = useRef(false);
+  const uploadingPictureRef = useRef(false);
   const [aboutFields, setAboutFields] = useState({ bio: "", serviceInterests: "", projectInterests: "" });
   const [aboutDraft, setAboutDraft] = useState({ bio: "", serviceInterests: "", projectInterests: "" });
   const [profileLoading, setProfileLoading] = useState(true);
@@ -155,6 +159,7 @@ export default function ClientProfile() {
   const updateProfileField = (event) => {
     const { name, value } = event.target;
     setProfileDraft((current) => ({ ...current, [name]: value }));
+    setFieldErrors((current) => ({ ...current, [name]: "" }));
     setProfileError("");
     setProfileNotice("");
   };
@@ -162,6 +167,7 @@ export default function ClientProfile() {
   const updateAboutField = (event) => {
     const { name, value } = event.target;
     setAboutDraft((current) => ({ ...current, [name]: value }));
+    setFieldErrors((current) => ({ ...current, [name]: "" }));
     setProfileError("");
     setProfileNotice("");
   };
@@ -171,6 +177,7 @@ export default function ClientProfile() {
     setAboutDraft(aboutFields);
     setProfileError("");
     setProfileNotice("");
+    setFieldErrors({});
     setAvatarError("");
     setSelectedAvatarFile(null);
     setAvatarRemoved(false);
@@ -187,6 +194,7 @@ export default function ClientProfile() {
     setAvatarError("");
     setProfileError("");
     setProfileNotice("");
+    setFieldErrors({});
     setEditMode(false);
   };
 
@@ -203,7 +211,7 @@ export default function ClientProfile() {
         setSelectedAvatarFile(null);
         setAvatarPreview(avatarRemoved ? "" : profilePictureUrl);
       }
-      setProfileError(validationError);
+      setAvatarError(validationError);
       event.target.value = "";
       return;
     }
@@ -226,7 +234,8 @@ export default function ClientProfile() {
   };
 
   const uploadSelectedProfilePicture = async () => {
-    if (!user || !selectedAvatarFile || uploadingPicture || savingProfile) return;
+    if (!user || !selectedAvatarFile || uploadingPictureRef.current || savingProfileRef.current) return;
+    uploadingPictureRef.current = true;
     setUploadingPicture(true);
     setProfileError("");
     setProfileNotice("");
@@ -274,40 +283,34 @@ export default function ClientProfile() {
       }
       setProfileError(message);
     } finally {
+      uploadingPictureRef.current = false;
       setUploadingPicture(false);
     }
   };
 
   const saveProfile = async (event) => {
     event.preventDefault();
-    if (!user || savingProfile || uploadingPicture) return;
-    const fullName = profileDraft.fullName.trim();
-    const username = profileDraft.username.trim().toLowerCase();
-    const country = profileDraft.country.trim();
-    const city = profileDraft.city.trim();
-
-    if (!fullName) {
-      setProfileError("Enter your full name.");
-      document.getElementById("client-profile-full-name")?.focus();
-      return;
-    }
-    if (username && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      setProfileError("Use 3–20 letters, numbers, or underscores for your username.");
-      document.getElementById("client-profile-username")?.focus();
-      return;
-    }
-
-    if (aboutDraft.bio.length > maxBioLength) {
-      setProfileError(`Your bio must be ${maxBioLength} characters or fewer.`);
-      document.getElementById("client-profile-bio")?.focus();
-      return;
-    }
-
-    const bio = aboutDraft.bio.trim();
-    const serviceInterests = splitInterestList(aboutDraft.serviceInterests).join(", ");
-    const projectInterests = splitInterestList(aboutDraft.projectInterests).join(", ");
-    setSavingProfile(true);
+    if (!user || savingProfileRef.current || uploadingPictureRef.current) return;
+    const { values, errors } = validateClientProfileDraft({ ...profileDraft, ...aboutDraft });
+    setFieldErrors(errors);
     setProfileError("");
+    if (Object.keys(errors).length > 0) {
+      const firstInvalidField = ["fullName", "username", "country", "bio"].find((field) => errors[field]);
+      document.getElementById(`client-profile-${firstInvalidField}`)?.focus();
+      return;
+    }
+
+    savingProfileRef.current = true;
+    const {
+      fullName,
+      username,
+      country,
+      city,
+      bio,
+      serviceInterests,
+      projectInterests,
+    } = values;
+    setSavingProfile(true);
     setProfileNotice("");
     const role = user.user_metadata?.role === "seller" ? "seller" : "customer";
     const previousAvatarPath = profileFields.avatarPath;
@@ -380,6 +383,7 @@ export default function ClientProfile() {
       }
       setProfileError(message);
     } finally {
+      savingProfileRef.current = false;
       setSavingProfile(false);
     }
   };
@@ -475,7 +479,7 @@ export default function ClientProfile() {
           <span className="client-profile-hero-decoration" aria-hidden="true"><Sparkles size={22} /></span>
         </section>
 
-        <form className="client-profile-page-form" onSubmit={saveProfile}>
+        <form className="client-profile-page-form" onSubmit={saveProfile} noValidate>
         <div className="client-profile-grid">
           <ClientProfileCard
             icon={UserRound}
@@ -534,6 +538,8 @@ export default function ClientProfile() {
                       onChange={updateProfileField}
                       autoComplete="name"
                       required
+                      minLength={2}
+                      error={fieldErrors.fullName}
                     />
                     <ClientProfileInput
                       id="client-profile-username"
@@ -542,6 +548,11 @@ export default function ClientProfile() {
                       value={profileDraft.username}
                       onChange={updateProfileField}
                       autoComplete="username"
+                      required
+                      minLength={3}
+                      maxLength={20}
+                      pattern="[A-Za-z0-9_]{3,20}"
+                      error={fieldErrors.username}
                       aria-describedby="client-profile-username-help"
                     />
                     <ClientProfileInput
@@ -560,6 +571,8 @@ export default function ClientProfile() {
                       value={profileDraft.country}
                       onChange={updateProfileField}
                       autoComplete="country-name"
+                      required
+                      error={fieldErrors.country}
                     />
                     <ClientProfileInput
                       id="client-profile-city"
@@ -604,9 +617,11 @@ export default function ClientProfile() {
                       maxLength={maxBioLength}
                       value={aboutDraft.bio}
                       onChange={updateAboutField}
-                      aria-describedby="client-profile-bio-count"
+                      aria-invalid={Boolean(fieldErrors.bio)}
+                      aria-describedby={`client-profile-bio-count${fieldErrors.bio ? " client-profile-bio-error" : ""}`}
                       placeholder="Tell sellers a little about yourself."
                     />
+                    {fieldErrors.bio && <span className="client-profile-field-error" id="client-profile-bio-error" role="alert">{fieldErrors.bio}</span>}
                   </label>
                   <span id="client-profile-bio-count" className={`client-profile-bio-count${aboutDraft.bio.length > maxBioLength ? " over-limit" : ""}`}>
                     {aboutDraft.bio.length}/{maxBioLength} characters

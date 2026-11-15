@@ -1763,6 +1763,8 @@ a { color: inherit; text-decoration: none; }
 .dashboard-form-grid label { min-width: 0; display: grid; gap: 6px; color: #cbd6e6; font-size: 8px; }
 .dashboard-form-full { grid-column: 1 / -1; }
 .dashboard-form-grid input, .dashboard-form-grid textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #879ab833; border-radius: 7px; color: #e3eaf5; background: #0b1423; font: 9px "Inter",sans-serif; }
+.dashboard-form-grid input[aria-invalid="true"], .dashboard-form-grid textarea[aria-invalid="true"] { border-color: #ef4444; }
+.dashboard-field-error { color: #fca5a5; font-size: 8px; line-height: 1.4; }
 .dashboard-form-grid textarea { resize: vertical; line-height: 1.6; }
 .dashboard-form-grid input:focus, .dashboard-form-grid textarea:focus { border-color: #6688ef; outline: 2px solid #2563eb2b; }
 .dashboard-profile-form > .market-button { justify-self: start; min-height: 36px; font-size: 8px; }
@@ -2376,6 +2378,8 @@ main [class*="card"], main [class*="panel"] {
 .dashboard-avatar-editor-copy small { color: #64748B; }
 .dashboard-avatar-editor-link { border-color: #BFDBFE; color: #1D4ED8; background: #EFF6FF; }
 .dashboard-avatar-editor-link:hover { border-color: #93C5FD; background: #DBEAFE; }
+.dashboard-field-error { color: #B91C1C; }
+.dashboard-form-grid input[aria-invalid="true"], .dashboard-form-grid textarea[aria-invalid="true"] { border-color: #EF4444; }
 .dashboard-settings-list label { border-color: #E5E7EB; }
 .dashboard-profile-summary { border-color: #E5E7EB; background: #fff; }
 .dashboard-profile-summary > span { color: #6D28D9; }
@@ -2834,6 +2838,8 @@ main .messages-thread-empty p:not(.google-oauth-error):not(.form-error):not(.mes
 .client-profile-form-field > span { color: #334155 !important; font-size: 11px; font-weight: 600; }
 .client-profile-form-field input { width: 100%; min-height: 41px; padding: 0 11px; border: 1px solid #CBD5E1; border-radius: 9px; color: #111827; background: #fff; font-size: 12px; }
 .client-profile-form-field input:focus { border-color: #60A5FA; outline: 3px solid rgba(37,99,235,.12); }
+.client-profile-form-field input[aria-invalid="true"], .client-profile-about-field textarea[aria-invalid="true"] { border-color: #EF4444; }
+.client-profile-form-field > .client-profile-field-error { color: #B91C1C !important; font-size: 10px; font-weight: 500; line-height: 1.4; }
 .client-profile-form-field input[readonly] { color: #64748B; background: #F1F5F9; cursor: not-allowed; }
 .client-profile-field-help { margin-top: -9px; color: #64748B; font-size: 10px; }
 .client-profile-form-actions { display: flex; justify-content: flex-end; gap: 9px; }

@@ -28,11 +28,18 @@ export function ClientProfileDetail({ icon: Icon = UserRound, label, value }) {
   );
 }
 
-export function ClientProfileInput({ id, label, ...inputProps }) {
+export function ClientProfileInput({ id, label, error, ...inputProps }) {
+  const describedBy = [inputProps["aria-describedby"], error ? `${id}-error` : ""].filter(Boolean).join(" ");
   return (
     <label className="client-profile-form-field" htmlFor={id}>
       <span>{label}</span>
-      <input id={id} {...inputProps} />
+      <input
+        id={id}
+        {...inputProps}
+        aria-invalid={error ? true : inputProps["aria-invalid"]}
+        aria-describedby={describedBy || undefined}
+      />
+      {error && <span className="client-profile-field-error" id={`${id}-error`} role="alert">{error}</span>}
     </label>
   );
 }

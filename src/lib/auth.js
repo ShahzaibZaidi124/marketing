@@ -108,12 +108,16 @@ export async function verifyAuthenticatedUser(userId) {
   return data.user;
 }
 
-async function verifyOwnedProfilePicturePath(userId, path) {
-  await verifyAuthenticatedUser(userId);
+function assertOwnedProfilePicturePath(userId, path) {
   const parts = typeof path === "string" ? path.split("/") : [];
   if (parts.length !== 2 || parts[0] !== userId || !parts[1]) {
     throw new Error("The profile picture does not belong to the signed-in user.");
   }
+}
+
+async function verifyOwnedProfilePicturePath(userId, path) {
+  await verifyAuthenticatedUser(userId);
+  assertOwnedProfilePicturePath(userId, path);
 }
 
 export async function uploadClientProfilePicture(userId, file) {
@@ -176,6 +180,7 @@ export async function saveClientProfile({ userId, email, role, sellerDetails, pr
   if (!userId) throw new Error("A signed-in user is required to save a client profile.");
   if (!profile || typeof profile !== "object") throw new Error("Client profile data is required.");
   await verifyAuthenticatedUser(userId);
+  if (profile.avatarPath) assertOwnedProfilePicturePath(userId, profile.avatarPath);
 
   const profileFields = { updated_at: new Date().toISOString() };
   if (Object.prototype.hasOwnProperty.call(profile, "fullName")) profileFields.full_name = profile.fullName;

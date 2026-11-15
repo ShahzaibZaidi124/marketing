@@ -22,7 +22,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
-import { saveClientProfile, updateUserEmail, updateUserMetadata, updateUserPassword } from "../lib/auth.js";
+import {
+  saveClientProfile,
+  updateUserEmail,
+  updateUserMetadata,
+  updateUserPassword,
+  verifyAuthenticatedUser,
+} from "../lib/auth.js";
+import { validateClientProfileDraft } from "../lib/profileValidation.js";
 
 const customerNavigation = [
   { key: "overview", label: "Overview", Icon: LayoutDashboard },
@@ -166,7 +173,9 @@ export default function CustomerDashboard() {
   const [profileForm, setProfileForm] = useState(customerProfile);
   const [profileError, setProfileError] = useState("");
   const [profileNotice, setProfileNotice] = useState("");
+  const [profileFieldErrors, setProfileFieldErrors] = useState({});
   const [savingProfile, setSavingProfile] = useState(false);
+  const savingProfileRef = useRef(false);
   const [preferences, setPreferences] = useState({ orderUpdates: true, marketplaceUpdates: false });
   const hydratedUserId = useRef("");
 
@@ -199,15 +208,37 @@ export default function CustomerDashboard() {
   const updateProfileField = (event) => {
     const { name, value } = event.target;
     setProfileForm((current) => ({ ...current, [name]: value }));
+    setProfileFieldErrors((current) => ({ ...current, [name]: "" }));
     setProfileError("");
     setProfileNotice("");
   };
 
   const saveProfile = async (event) => {
     event.preventDefault();
-    if (!profileForm.displayName.trim()) {
-      setProfileError("Enter a display name.");
-      document.getElementById("customer-display-name")?.focus();
+    if (savingProfileRef.current) return;
+    setProfileError("");
+    setProfileNotice("");
+    const { values, errors } = validateClientProfileDraft({
+      fullName: profileForm.displayName,
+      username: profileForm.username,
+      country: profileForm.country,
+      city: profileForm.city,
+      bio: profileForm.description,
+      serviceInterests: profileForm.interests,
+      projectInterests: "",
+    });
+    setProfileFieldErrors({
+      displayName: errors.fullName,
+      username: errors.username,
+      country: errors.country,
+      description: errors.bio,
+    });
+    if (Object.keys(errors).length > 0) {
+      const field = errors.fullName ? "customer-display-name"
+        : errors.username ? "customer-username"
+          : errors.country ? "customer-country"
+            : "customer-description";
+      document.getElementById(field)?.focus();
       return;
     }
     if (profileForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileForm.email.trim())) {
@@ -219,20 +250,23 @@ export default function CustomerDashboard() {
     setProfileNotice("");
     const nextProfile = {
       ...profileForm,
-      displayName: profileForm.displayName.trim(),
-      username: profileForm.username.trim().toLowerCase(),
+      displayName: values.fullName,
+      username: values.username,
       email: profileForm.email.trim(),
-      country: profileForm.country.trim(),
-      city: profileForm.city.trim(),
-      description: profileForm.description.trim(),
-      interests: profileForm.interests.trim(),
+      country: values.country,
+      city: values.city,
+      description: values.bio,
+      interests: values.serviceInterests,
     };
+    savingProfileRef.current = true;
     setSavingProfile(true);
     try {
       if (user) {
+        await verifyAuthenticatedUser(user.id);
         const updatedUser = profileForm.email.trim() !== (user.email || "")
           ? await updateUserEmail(nextProfile.email)
           : user;
+        await verifyAuthenticatedUser(user.id);
         const savedUser = await updateUserMetadata({
           full_name: nextProfile.displayName,
           username: nextProfile.username,
@@ -267,6 +301,7 @@ export default function CustomerDashboard() {
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "Your profile could not be saved. Please try again.");
     } finally {
+      savingProfileRef.current = false;
       setSavingProfile(false);
     }
   };
@@ -368,12 +403,28 @@ export default function CustomerDashboard() {
           <Link className="dashboard-avatar-editor-link" to="/customer/profile">Edit picture</Link>
         </div>
         <div className="dashboard-form-grid">
-          <label>Full name<input id="customer-display-name" name="displayName" value={profileForm.displayName} onChange={updateProfileField} autoComplete="name" required /></label>
-          <label>Username<input name="username" value={profileForm.username} onChange={updateProfileField} autoComplete="username" /></label>
+          <label>
+            Full name
+            <input id="customer-display-name" name="displayName" value={profileForm.displayName} onChange={updateProfileField} autoComplete="name" minLength={2} required aria-invalid={Boolean(profileFieldErrors.displayName)} aria-describedby={profileFieldErrors.displayName ? "customer-display-name-error" : undefined} />
+            {profileFieldErrors.displayName && <small className="dashboard-field-error" id="customer-display-name-error" role="alert">{profileFieldErrors.displayName}</small>}
+          </label>
+          <label>
+            Username
+            <input id="customer-username" name="username" value={profileForm.username} onChange={updateProfileField} autoComplete="username" minLength={3} maxLength={20} pattern="[A-Za-z0-9_]{3,20}" required aria-invalid={Boolean(profileFieldErrors.username)} aria-describedby={profileFieldErrors.username ? "customer-username-error" : undefined} />
+            {profileFieldErrors.username && <small className="dashboard-field-error" id="customer-username-error" role="alert">{profileFieldErrors.username}</small>}
+          </label>
           <label>Email address<input id="customer-email" name="email" type="email" value={profileForm.email} onChange={updateProfileField} autoComplete="email" /></label>
-          <label>Country<input name="country" value={profileForm.country} onChange={updateProfileField} autoComplete="country-name" /></label>
+          <label>
+            Country
+            <input id="customer-country" name="country" value={profileForm.country} onChange={updateProfileField} autoComplete="country-name" required aria-invalid={Boolean(profileFieldErrors.country)} aria-describedby={profileFieldErrors.country ? "customer-country-error" : undefined} />
+            {profileFieldErrors.country && <small className="dashboard-field-error" id="customer-country-error" role="alert">{profileFieldErrors.country}</small>}
+          </label>
           <label>City<input name="city" value={profileForm.city} onChange={updateProfileField} autoComplete="address-level2" /></label>
-          <label className="dashboard-form-full">About me<textarea name="description" rows="3" value={profileForm.description} onChange={updateProfileField} placeholder="Add a short introduction." /></label>
+          <label className="dashboard-form-full">
+            About me
+            <textarea id="customer-description" name="description" rows="3" maxLength={300} value={profileForm.description} onChange={updateProfileField} placeholder="Add a short introduction." aria-invalid={Boolean(profileFieldErrors.description)} aria-describedby={profileFieldErrors.description ? "customer-description-error" : undefined} />
+            {profileFieldErrors.description && <small className="dashboard-field-error" id="customer-description-error" role="alert">{profileFieldErrors.description}</small>}
+          </label>
           <label className="dashboard-form-full">Services you're interested in<textarea name="interests" rows="3" value={profileForm.interests} onChange={updateProfileField} placeholder="For example: websites, branding, or e-commerce." /></label>
         </div>
         {profileError && <p className="dashboard-form-error" role="alert">{profileError}</p>}

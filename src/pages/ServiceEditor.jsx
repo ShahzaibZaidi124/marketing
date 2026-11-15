@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import { serviceCategories, servicePackages } from "../data/services.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
@@ -115,6 +116,7 @@ export default function ServiceEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
   const sellerProfile = location.state?.sellerProfile;
+  const { profilePictureUrl } = useAuth();
   const { getOwnedService, saveSellerService } = useMarketplace();
   const editing = Boolean(id);
   const existingService = editing && sellerProfile ? getOwnedService(id, sellerProfile.username) : null;
@@ -133,6 +135,7 @@ export default function ServiceEditor() {
   }));
   const [errors, setErrors] = useState({});
   const [imageError, setImageError] = useState("");
+  const sellerAvatar = profilePictureUrl || sellerProfile?.avatar || "";
 
   if (!sellerProfile) return <Navigate to="/seller/register" replace />;
   if (editing && !existingService) {
@@ -551,7 +554,7 @@ export default function ServiceEditor() {
           </div>
           {images.length > 1 && <div className="seller-service-preview-thumbnails">{images.map((image, index) => <button key={image.id} type="button" className={mainImageIndex === index ? "active" : ""} onClick={() => setMainImageIndex(index)} aria-label={`Preview image ${index + 1}`}><img src={image.url} alt="" /></button>)}</div>}
           <div className="seller-service-preview-seller">
-            <span>{sellerProfile.avatar ? <img src={sellerProfile.avatar} alt="" /> : sellerProfile.displayName.slice(0, 1).toUpperCase()}</span>
+            <span>{sellerAvatar ? <img src={sellerAvatar} alt="" /> : sellerProfile.displayName.slice(0, 1).toUpperCase()}</span>
             <div><small>Seller preview</small><strong>{sellerProfile.displayName}</strong></div>
           </div>
           <p className="seller-service-preview-description">{form.description || "Your service description will appear here so customers can understand what you offer."}</p>

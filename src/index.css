@@ -2284,6 +2284,53 @@ main [class*="card"], main [class*="panel"] {
 .service-order-demo-notice { color: #854D0E; border-color: #FDE68A; background: #FFFBEB; }
 .service-order-demo-notice span { color: #92400E; }
 .service-order-submit-area > p { color: #64748B; }
+.service-order-heading h1 { color: #111827; }
+.service-order-heading p, .service-order-back { color: #64748B; }
+.service-order-back:hover { color: #1D4ED8; }
+.service-order-card, .service-order-review-card {
+  color: #334155;
+  border-color: #DBEAFE;
+  background: linear-gradient(150deg,#fff,#F8FAFF 80%);
+  box-shadow: 0 12px 36px rgba(37,99,235,.07);
+}
+.service-order-card-heading h2, .service-order-listing-copy h3,
+.service-order-review-title h2, .service-order-review-service > div > strong { color: #111827; }
+.service-order-card-heading p, .service-order-listing-copy > span,
+.service-order-listing-copy p, .service-order-review-service > div > span { color: #64748B; }
+.service-order-field > label { color: #334155; }
+.service-order-field input:not([type="checkbox"]):not([type="file"]),
+.service-order-field select, .service-order-field textarea {
+  color: #111827;
+  border-color: #CBD5E1;
+  background: #fff;
+}
+.service-order-field input::placeholder, .service-order-field textarea::placeholder { color: #94A3B8; }
+.service-order-field select option { color: #111827; background: #fff; }
+.service-order-error { color: #B91C1C; }
+.service-order-catalog-message { margin: 14px 0 0; color: #475569; font-size: 11px; line-height: 1.6; }
+.service-order-package-select { margin-top: 16px; }
+.service-order-feedback {
+  padding: 12px 14px;
+  border: 1px solid #FECACA;
+  border-radius: 9px;
+  color: #991B1B;
+  background: #FEF2F2;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.service-order-feedback-error { color: #991B1B; }
+.service-order-feedback button {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  color: #1D4ED8;
+  background: transparent;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.service-order-submit:disabled { opacity: .58; cursor: not-allowed; }
 .seller-banner-art {
   color: #475569;
   border-color: #DBEAFE;

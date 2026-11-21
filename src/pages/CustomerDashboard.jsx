@@ -653,6 +653,9 @@ export default function CustomerDashboard() {
         title={currentSection === "active-orders" ? "Active orders" : currentSection === "completed-orders" ? "Completed orders" : "My orders"}
         description="Orders shown here are loaded from your authenticated account."
       />
+      {location.state?.orderCreated && (
+        <p className="dashboard-form-success" role="status">Your order was created successfully and is now listed below.</p>
+      )}
       <div className="dashboard-order-filters" role="group" aria-label="Filter orders by status">
         {orderStatusFilters.map(({ value, label }) => (
           <button

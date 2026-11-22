@@ -51,7 +51,7 @@ const customerNavigation = [
   { key: "orders", label: "My Orders", Icon: ShoppingBag },
   { key: "active-orders", label: "Active Orders", Icon: Clock3 },
   { key: "completed-orders", label: "Completed Orders", Icon: CheckCircle2 },
-  { key: "messages", label: "Messages", Icon: MessageCircle, to: "/messages?role=customer" },
+  { key: "messages", label: "Messages", Icon: MessageCircle, to: "/messages" },
   { key: "saved", label: "Saved Services", Icon: Bookmark },
   { key: "reviews", label: "My Reviews", Icon: Star },
   { key: "profile", label: "Profile", Icon: UserRound, to: "/customer/profile" },

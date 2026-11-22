@@ -24,6 +24,7 @@ import {
 import ServiceEditor from "./pages/ServiceEditor.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
+import { RequireAuth } from "./components/RouteGuards.jsx";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -55,7 +56,7 @@ export default function App() {
         <Route path="/services" element={<ExploreServices />} />
         <Route path="/services/:id/order" element={<ServiceOrder />} />
         <Route path="/services/:id" element={<ServiceDetails />} />
-        <Route path="/messages" element={<Messages />} />
+        <Route path="/messages" element={<RequireAuth><Messages /></RequireAuth>} />
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/customer/orders/:orderId" element={<CustomerDashboard />} />
         <Route path="/customer/profile" element={<ClientProfile />} />

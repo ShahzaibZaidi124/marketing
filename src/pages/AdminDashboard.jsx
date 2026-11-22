@@ -11,6 +11,7 @@ import {
   FolderKanban,
   LayoutDashboard,
   Menu,
+  MessageCircle,
   Search,
   Settings,
   Shield,
@@ -23,9 +24,12 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { serviceCategories } from "../data/services.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
+import AdminMessages from "./AdminMessages.jsx";
+import { RequireOwner } from "../components/RouteGuards.jsx";
 
 const navigation = [
   { key: "overview", label: "Overview", Icon: LayoutDashboard },
+  { key: "messages", label: "Messages", Icon: MessageCircle },
   { key: "users", label: "Users", Icon: UserRound },
   { key: "sellers", label: "Sellers", Icon: Store },
   { key: "services", label: "Services", Icon: BriefcaseBusiness },
@@ -69,6 +73,7 @@ function AdminDashboard() {
   const { allServices, sellerServices, saveSellerService } = useMarketplace();
   const activeSection = pathname.split("/")[2] || "overview";
   const activeItem = navigation.find((item) => item.key === activeSection) || navigation[0];
+  const isMessagesSection = activeSection === "messages";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -227,16 +232,18 @@ function AdminDashboard() {
           <button className="admin-menu-toggle" type="button" onClick={() => setSidebarOpen(true)} aria-label="Open dashboard navigation">
             <Menu size={19} />
           </button>
-          <div className="admin-search">
-            <Search size={16} aria-hidden="true" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              aria-label={`Search ${activeItem.label.toLowerCase()}`}
-              placeholder={`Search ${activeItem.label.toLowerCase()}...`}
-            />
-            {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"><X size={14} /></button>}
-          </div>
+          {!isMessagesSection && (
+            <div className="admin-search">
+              <Search size={16} aria-hidden="true" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                aria-label={`Search ${activeItem.label.toLowerCase()}`}
+                placeholder={`Search ${activeItem.label.toLowerCase()}...`}
+              />
+              {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"><X size={14} /></button>}
+            </div>
+          )}
           <div className="admin-topbar-actions">
             <button type="button" className="admin-icon-button" aria-label="Notifications unavailable in preview" title="Notifications are not connected">
               <Bell size={17} />
@@ -263,17 +270,25 @@ function AdminDashboard() {
             <div>
               <span className="market-eyebrow">NEXTECH · ADMIN WORKSPACE</span>
               <h1>{activeSection === "overview" ? "Platform overview" : activeItem.label}</h1>
-              <p>Manage your marketplace preview and review platform activity.</p>
+              <p>{isMessagesSection ? "Read and reply to every customer conversation. Access is verified on the server before any message is written." : "Manage your marketplace preview and review platform activity."}</p>
             </div>
-            <div className="admin-status-chip"><span /> Demo mode</div>
+            {!isMessagesSection && <div className="admin-status-chip"><span /> Demo mode</div>}
           </div>
 
-          <div className="admin-security-notice" role="note">
-            <AlertTriangle size={17} />
-            <p><strong>Not a secure admin system.</strong> No backend, database, sign-in, or server-side role checks are connected. This page is publicly accessible; preview changes are in browser memory only. Do not use it to manage real accounts or sensitive data.</p>
-          </div>
+          {!isMessagesSection && (
+            <div className="admin-security-notice" role="note">
+              <AlertTriangle size={17} />
+              <p><strong>Not a secure admin system.</strong> No backend, database, sign-in, or server-side role checks are connected. This page is publicly accessible; preview changes are in browser memory only. Do not use it to manage real accounts or sensitive data.</p>
+            </div>
+          )}
 
           {notice && <div className="admin-action-notice" role="status"><CheckCircle2 size={16} />{notice}<button type="button" onClick={() => setNotice("")} aria-label="Dismiss notice"><X size={14} /></button></div>}
+
+          {isMessagesSection && (
+            <RequireOwner>
+              <AdminMessages />
+            </RequireOwner>
+          )}
 
           {activeSection === "overview" && (
             <>

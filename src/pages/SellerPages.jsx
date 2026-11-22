@@ -770,7 +770,7 @@ export function SellerDashboard() {
     { key: "create-service", label: "Create New Service", Icon: Plus, to: "/seller/services/new", state: { sellerProfile } },
     { key: "active-orders", label: "Active Orders", Icon: Clock3 },
     { key: "completed-orders", label: "Completed Orders", Icon: CheckCircle2 },
-    { key: "messages", label: "Messages", Icon: MessageCircle, to: "/messages?role=seller", state: { sellerProfile } },
+    { key: "messages", label: "Messages", Icon: MessageCircle, to: "/messages" },
     { key: "earnings", label: "Earnings", Icon: CircleDollarSign },
     { key: "reviews", label: "Reviews", Icon: Star },
     { key: "profile", label: "Edit Profile", Icon: UserRound },

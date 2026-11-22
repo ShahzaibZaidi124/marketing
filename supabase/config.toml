@@ -3,5 +3,11 @@ project_id = "nextech-marketing"
 [functions.place-order]
 verify_jwt = true
 
+[functions.send-message]
+verify_jwt = true
+
+[functions.mark-read]
+verify_jwt = true
+
 [edge_runtime.secrets]
 CORS_ALLOWED_ORIGINS = "https://nextech5.vercel.app"

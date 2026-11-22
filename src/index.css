@@ -3051,3 +3051,143 @@ main .messages-thread-empty p:not(.google-oauth-error):not(.form-error):not(.mes
   .client-profile-interest-tags { gap: 6px; }
   .client-profile-interest-tags > span { padding: 6px 8px; }
 }
+
+/* Real customer <-> owner messaging */
+.messages-layout-single { grid-template-columns: minmax(0,1fr); }
+.messages-spinner { animation: messages-spin 1s linear infinite; }
+@keyframes messages-spin { to { transform: rotate(360deg); } }
+.messages-loading {
+  margin: 0 0 14px;
+  padding: 15px;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #475569;
+  background: #fff;
+  font-size: 12px;
+}
+.messages-loading-inline { margin: 0; border: 0; border-bottom: 1px solid #E5E7EB; border-radius: 0; flex: 0 0 auto; }
+.messages-error-state {
+  margin: 0 0 14px;
+  padding: 15px;
+  border: 1px solid #FECACA;
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: #991B1B;
+  background: #FEF2F2;
+}
+.messages-error-state-inline { margin: 0; border: 0; border-bottom: 1px solid #FECACA; border-radius: 0; flex: 0 0 auto; }
+.messages-error-state > div { min-width: 0; flex: 1 1 200px; }
+.messages-error-state strong { display: block; color: #991B1B; font-size: 12px; }
+.messages-error-state p { margin: 4px 0 0; color: #B91C1C; font-size: 11px; line-height: 1.6; }
+.messages-error-icon { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 9px; display: grid; place-items: center; color: #DC2626; background: #FEE2E2; }
+.messages-retry-button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #FCA5A5;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #991B1B;
+  background: #fff;
+  font: 600 11px "Inter",sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.messages-retry-button:hover { background: #FFF7F7; }
+.messages-retry-button:focus-visible { outline: 3px solid #FCA5A5; outline-offset: 2px; }
+.messages-empty-inbox {
+  padding: 46px 22px;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15,23,42,.05);
+}
+.messages-empty-inbox > span { width: 46px; height: 46px; border: 1px solid #BFDBFE; border-radius: 14px; display: grid; place-items: center; color: #2563EB; background: #EFF6FF; }
+.messages-empty-inbox strong { color: #111827; font: 600 15px "Poppins",sans-serif; }
+.messages-empty-inbox p { max-width: 420px; margin: 0; color: #64748B; font-size: 12px; line-height: 1.7; }
+.messages-empty-inbox .messages-retry-button { margin-top: 4px; border-color: #BFDBFE; color: #1D4ED8; }
+.messages-empty-inbox .messages-retry-button:hover { background: #EFF6FF; }
+.messages-read-state { color: #64748B; }
+.messages-inbox-heading-actions { display: flex; align-items: center; gap: 8px; }
+.messages-inbox-heading-actions button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #CBD5E1;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: #475569;
+  background: #fff;
+  cursor: pointer;
+}
+.messages-inbox-heading-actions button:hover { color: #1D4ED8; border-color: #93C5FD; background: #EFF6FF; }
+.messages-inbox-heading-actions .messages-unread-total { color: #fff !important; }
+.admin-messages-layout { min-height: 560px; }
+@media (max-width: 760px) {
+  .admin-messages-layout { min-height: 540px; }
+  .messages-layout-single .messages-chat { display: flex; min-height: 540px; }
+}
+@media (max-width: 480px) {
+  .messages-error-state { align-items: flex-start; }
+  .messages-empty-inbox { padding: 34px 16px; }
+}
+
+/* Signed-in and owner route guards */
+.route-guard {
+  width: min(1160px,calc(100% - 64px));
+  min-height: 52vh;
+  margin: 0 auto;
+  padding: 84px 0;
+  display: grid;
+  place-items: center;
+}
+.route-guard > div {
+  width: min(460px,100%);
+  padding: 30px 26px;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  background: linear-gradient(135deg,#fff,#F8FAFF);
+  box-shadow: 0 16px 40px rgba(15,23,42,.07);
+}
+.route-guard-icon { width: 50px; height: 50px; border: 1px solid #BFDBFE; border-radius: 15px; display: grid; place-items: center; color: #2563EB; background: #EFF6FF; }
+.route-guard h1 { margin: 0; color: #111827; font: 600 clamp(19px,2.2vw,24px)/1.25 "Poppins",sans-serif; letter-spacing: -.03em; }
+.route-guard p { margin: 0; color: #475569; font-size: 12px; line-height: 1.7; }
+.route-guard p:not(.google-oauth-error):not(.form-error) { color: #475569 !important; }
+.route-guard.is-error .route-guard-icon, .route-guard.is-denied .route-guard-icon { color: #B91C1C; border-color: #FECACA; background: #FEF2F2; }
+.route-guard-link { color: #2563EB; font-size: 12px; font-weight: 600; }
+.route-guard-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #BFDBFE;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #1D4ED8;
+  background: #EFF6FF;
+  font: 600 11px "Inter",sans-serif;
+  cursor: pointer;
+}
+.route-guard-button:hover { background: #DBEAFE; }
+.route-guard .google-oauth-section { width: 100%; margin: 0; }
+.admin-main .route-guard { width: 100%; min-height: 40vh; padding: 34px 0 60px; }
+@media (max-width: 760px) {
+  .route-guard { width: calc(100% - 36px); padding: 56px 0; }
+  .admin-main .route-guard { width: 100%; padding: 24px 0 44px; }
+}

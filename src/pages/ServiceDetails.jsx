@@ -208,15 +208,15 @@ export default function ServiceDetails() {
               <h3>{service.seller}</h3>
               <p>{details.sellerBio}</p>
             </div>
-            <Link className="market-button market-button-outline seller-contact-button" to={`/messages?service=${encodeURIComponent(service.id)}`}>
-              Message Seller <ArrowUpRight size={14} />
+            <Link className="market-button market-button-outline seller-contact-button" to="/messages">
+              Message NexTech <ArrowUpRight size={14} />
             </Link>
           </div>
           <div className="seller-profile-skills">
             <h4>Skills</h4>
             <div>{details.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
           </div>
-          <p className="seller-contact-note">{isSellerService ? "Seller profiles are demo previews. Message previews are not sent to sellers." : "Sample profiles are illustrative. This opens a local messaging preview; direct seller messaging is not connected yet."}</p>
+          <p className="seller-contact-note">Messages are sent to the NexTech team, who manage every project on the platform.</p>
         </div>
         {!isSellerService && <>
           <div className="seller-portfolio-heading"><h3>Portfolio examples</h3><span>Sample concepts · Not client work</span></div>

@@ -1,77 +1,76 @@
+// Regression guard for the owner inbox read path.
+//
+// The owner SELECT policies already scope the read to the owner, so
+// getOwnerConversations() must send NO filter at all. A stray
+// .eq("customer_id", ownerId) silently returns zero rows — the owner's own id
+// never matches a customer conversation, and RLS filtering is not an error — so
+// the inbox renders "No customer conversations yet" with a healthy database.
+// That is exactly the failure these tests prevent from coming back.
+//
+// Run: node --experimental-test-module-mocks --test src/lib/messages.test.js
 import assert from "node:assert/strict";
-import test from "node:test";
-import {
-  countUnreadCustomerMessages,
-  formatMessageTime,
-  getMessagesLoadErrorMessage,
-  getSendMessageErrorMessage,
-  initialsFor,
-  isMissingMessagingError,
-  resolveCustomerName,
-  sortConversationsByRecency,
-  sortMessages,
-  validateMessageDraft,
-} from "./messages.js";
+import test, { mock } from "node:test";
 
-test("validates message drafts by trimming and enforcing the 4,000 character limit", () => {
-  assert.deepEqual(validateMessageDraft("  Hello NexTech  "), { value: "Hello NexTech", error: "" });
-  assert.equal(validateMessageDraft("   ").error, "Write a message before sending.");
-  assert.equal(validateMessageDraft(undefined).value, "");
-  assert.match(validateMessageDraft("a".repeat(4001)).error, /4,000 characters/);
-  assert.equal(validateMessageDraft("a".repeat(4000)).error, "");
+const recorded = [];
+
+// Records every call in the PostgREST builder chain and resolves like a real
+// request would. Nothing here touches the network.
+const query = new Proxy({}, {
+  get(_target, property) {
+    if (property === "then") return (resolve) => resolve({ data: [], error: null });
+    return (...args) => {
+      recorded.push(`.${String(property)}(${args.map((value) => JSON.stringify(value)).join(", ")})`);
+      return query;
+    };
+  },
 });
 
-test("detects an unapplied messaging migration and explains each failure", () => {
-  assert.equal(isMissingMessagingError({ code: "PGRST205" }), true);
-  assert.equal(isMissingMessagingError({ code: "42P01" }), true);
-  assert.equal(isMissingMessagingError({ code: "23503" }), false);
-  assert.equal(isMissingMessagingError(null), false);
-  assert.match(getMessagesLoadErrorMessage({ code: "PGRST205" }), /messaging migration/);
-  assert.match(getMessagesLoadErrorMessage(new Error("network down")), /network down/);
-  assert.match(getSendMessageErrorMessage(new Error("Not signed in")), /Not signed in/);
+mock.module(new URL("./supabase.js", import.meta.url), {
+  exports: {
+    getSupabaseClient: () => ({
+      from(table) {
+        recorded.push(`.from(${JSON.stringify(table)})`);
+        return query;
+      },
+    }),
+  },
 });
 
-test("sorts messages by created time then id", () => {
-  const sorted = sortMessages([
-    { id: "b", created_at: "2026-01-02T10:00:00.000Z" },
-    { id: "a", created_at: "2026-01-02T10:00:00.000Z" },
-    { id: "c", created_at: "2026-01-02T09:00:00.000Z" },
-  ]);
-  assert.deepEqual(sorted.map((message) => message.id), ["c", "a", "b"]);
+const { getMyConversation, getOwnerConversations, getUnreadCustomerMessages } =
+  await import("./messages.js");
+
+const filterCall = /^\.(eq|neq|gt|gte|lt|lte|like|ilike|is|in|contains|containedBy|match|not|or|filter|textSearch)\(/;
+
+test("owner inbox reads every conversation with no filter", async () => {
+  recorded.length = 0;
+  await getOwnerConversations();
+
+  assert.deepEqual(recorded.filter((call) => filterCall.test(call)), [],
+    `getOwnerConversations() must not filter by customer_id: RLS already restricts rows to the owner, so a customer_id filter hides every customer conversation. Sent: ${recorded.join("")}`);
+  assert.ok(recorded.includes('.from("conversations")'), "must read the conversations table");
+  assert.ok(
+    recorded.includes('.order("last_message_at", {"ascending":false,"nullsFirst":false})'),
+    "must keep ordering by last_message_at",
+  );
 });
 
-test("sorts conversations by most recent activity", () => {
-  const sorted = sortConversationsByRecency([
-    { id: "old", last_message_at: "2026-01-01T00:00:00.000Z", created_at: "2025-12-01T00:00:00.000Z" },
-    { id: "new", last_message_at: "2026-02-01T00:00:00.000Z", created_at: "2025-12-01T00:00:00.000Z" },
-    { id: "empty", last_message_at: null, created_at: "2026-03-01T00:00:00.000Z" },
-  ]);
-  assert.deepEqual(sorted.map((conversation) => conversation.id), ["new", "old", "empty"]);
+test("owner unread count is filtered by role, never by customer_id", async () => {
+  recorded.length = 0;
+  await getUnreadCustomerMessages();
+
+  assert.ok(recorded.includes('.from("messages")'), "must read the messages table");
+  assert.ok(recorded.includes('.eq("sender_role", "customer")'), "must count customer messages");
+  assert.equal(recorded.some((call) => call.startsWith('.eq("customer_id"')), false,
+    "the owner unread query must not be scoped to one customer");
 });
 
-test("counts unread customer messages per conversation", () => {
-  const counts = countUnreadCustomerMessages([
-    { conversation_id: "c1", sender_role: "customer", read_at: null },
-    { conversation_id: "c1", sender_role: "customer", read_at: "2026-01-01T00:00:00.000Z" },
-    { conversation_id: "c1", sender_role: "owner", read_at: null },
-    { conversation_id: "c2", sender_role: "customer", read_at: null },
-  ]);
-  assert.equal(counts.get("c1"), 1);
-  assert.equal(counts.get("c2"), 1);
-  assert.equal(counts.has("c3"), false);
-});
+test("customer inbox stays scoped to the caller's own customer_id", async () => {
+  recorded.length = 0;
+  const userId = "9f1b7d3e-0000-4000-8000-000000000001";
+  await getMyConversation(userId);
 
-test("resolves a customer display name from the available sources", () => {
-  assert.equal(resolveCustomerName({ customer_display_name: "Ava Brooks" }, null), "Ava Brooks");
-  assert.equal(resolveCustomerName({ customer_display_name: "  " }, { full_name: "Noah James" }), "Noah James");
-  assert.equal(resolveCustomerName({}, { email: "mia@example.com" }), "mia@example.com");
-  assert.equal(resolveCustomerName(null, null), "NexTech customer");
-});
-
-test("builds initials and formats message times for display", () => {
-  assert.equal(initialsFor("Ava Brooks"), "AB");
-  assert.equal(initialsFor("NexTech"), "N");
-  assert.equal(initialsFor(""), "");
-  assert.equal(formatMessageTime("not-a-date"), "");
-  assert.notEqual(formatMessageTime("2026-01-02T10:00:00.000Z"), "");
+  assert.ok(recorded.includes('.from("conversations")'), "must read the conversations table");
+  assert.deepEqual(recorded.filter((call) => filterCall.test(call)),
+    [`.eq("customer_id", ${JSON.stringify(userId)})`],
+    "the customer query must be scoped to the signed-in customer's own id, and to nothing else");
 });

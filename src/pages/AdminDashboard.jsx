@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -24,6 +24,8 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { serviceCategories } from "../data/services.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { isOwnerAccount } from "../lib/messages.js";
 import AdminMessages from "./AdminMessages.jsx";
 import { RequireOwner } from "../components/RouteGuards.jsx";
 
@@ -71,9 +73,11 @@ function AdminPageHeading({ eyebrow, title, children }) {
 function AdminDashboard() {
   const { pathname } = useLocation();
   const { allServices, sellerServices, saveSellerService } = useMarketplace();
+  const { user, loading: authLoading } = useAuth();
   const activeSection = pathname.split("/")[2] || "overview";
   const activeItem = navigation.find((item) => item.key === activeSection) || navigation[0];
   const isMessagesSection = activeSection === "messages";
+  const [isOwner, setIsOwner] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -95,6 +99,29 @@ function AdminDashboard() {
     supportEmail: "",
   });
   const [activity, setActivity] = useState([]);
+
+  // The Messages link is owner-only and fails closed: it stays hidden for
+  // guests, for customers, and while the server-side owner check is pending or
+  // unavailable. The inbox itself keeps its RequireOwner gate.
+  useEffect(() => {
+    if (authLoading) return undefined;
+    if (!user) {
+      setIsOwner(false);
+      return undefined;
+    }
+
+    let active = true;
+    isOwnerAccount()
+      .then((owner) => { if (active) setIsOwner(owner); })
+      .catch(() => { if (active) setIsOwner(false); });
+
+    return () => { active = false; };
+  }, [user, authLoading]);
+
+  const visibleNavigation = useMemo(
+    () => navigation.filter((item) => item.key !== "messages" || isOwner),
+    [isOwner],
+  );
 
   const filteredServices = useMemo(() => sellerServices.filter((service) => {
     const matchesStatus = statusFilter === "all" || service.status === statusFilter;
@@ -206,7 +233,7 @@ function AdminDashboard() {
         </Link>
         <div className="admin-side-label">WORKSPACE</div>
         <nav className="admin-navigation" aria-label="Admin dashboard navigation">
-          {navigation.map(({ key, label, Icon }) => (
+          {visibleNavigation.map(({ key, label, Icon }) => (
             <Link
               key={key}
               className={`admin-nav-link${activeSection === key ? " active" : ""}`}

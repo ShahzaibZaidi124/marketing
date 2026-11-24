@@ -4,14 +4,15 @@ import {
   AlertTriangle,
   Bell,
   BriefcaseBusiness,
-  Check,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
   FolderKanban,
   LayoutDashboard,
+  Loader2,
   Menu,
   MessageCircle,
+  RefreshCw,
   Search,
   Settings,
   Shield,
@@ -26,6 +27,28 @@ import { serviceCategories } from "../data/services.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { isOwnerAccount } from "../lib/messages.js";
+import { getAdminOverview, getAdminOverviewErrorMessage } from "../lib/adminOverview.js";
+import {
+  filterCustomerDirectory,
+  formatCustomerCreatedDate,
+  getAdminCustomerDirectory,
+  getAdminCustomerDirectoryErrorMessage,
+} from "../lib/adminCustomerDirectory.js";
+import {
+  filterAdminServices,
+  getAdminServicesDirectory,
+  getAdminServicesDirectoryErrorMessage,
+} from "../lib/adminServicesDirectory.js";
+import {
+  filterAdminOrders,
+  getAdminOrdersDirectory,
+  getAdminOrdersDirectoryErrorMessage,
+} from "../lib/adminOrdersDirectory.js";
+import {
+  formatClientOrderDate,
+  formatClientOrderPrice,
+  formatClientOrderStatus,
+} from "../lib/orders.js";
 import AdminMessages from "./AdminMessages.jsx";
 import { RequireOwner } from "../components/RouteGuards.jsx";
 
@@ -42,7 +65,14 @@ const navigation = [
   { key: "activity", label: "Activity log", Icon: Activity },
 ];
 
-const statusFilters = ["all", "pending", "published", "rejected", "removed", "draft"];
+// The only status filter the live catalog supports: the real is_active column.
+// Preview-only statuses (pending/published/rejected) are not database fields and
+// are not offered here.
+const serviceStatusOptions = ["all", "active", "inactive"];
+
+// The only status filter the live orders directory supports: the real status
+// column, whose allowed values are pending / active / completed / rejected.
+const orderStatusOptions = ["all", "pending", "active", "completed", "rejected"];
 
 function formatStatus(status) {
   return status === "published" ? "Published" : status.charAt(0).toUpperCase() + status.slice(1);
@@ -72,7 +102,7 @@ function AdminPageHeading({ eyebrow, title, children }) {
 
 function AdminDashboard() {
   const { pathname } = useLocation();
-  const { allServices, sellerServices, saveSellerService } = useMarketplace();
+  const { allServices } = useMarketplace();
   const { user, loading: authLoading } = useAuth();
   const activeSection = pathname.split("/")[2] || "overview";
   const activeItem = navigation.find((item) => item.key === activeSection) || navigation[0];
@@ -80,11 +110,8 @@ function AdminDashboard() {
   const [isOwner, setIsOwner] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [serviceStatusFilter, setServiceStatusFilter] = useState("all");
   const [profileOpen, setProfileOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null);
-  const [actionReason, setActionReason] = useState("");
-  const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
   const [categories, setCategories] = useState(() => serviceCategories.map((item) => ({
     ...item,
@@ -99,6 +126,133 @@ function AdminDashboard() {
     supportEmail: "",
   });
   const [activity, setActivity] = useState([]);
+  const [overview, setOverview] = useState(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersError, setCustomersError] = useState("");
+  const [customersRefreshKey, setCustomersRefreshKey] = useState(0);
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState("");
+  const [servicesRefreshKey, setServicesRefreshKey] = useState(0);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState("");
+  const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+
+  // The Overview shows real server data. An approved admin cannot read the
+  // profiles/orders tables directly (RLS exposes them to the owner only), so the
+  // totals come from the read-only admin_overview() RPC, which authorizes the
+  // caller with has_admin_access() and returns only approved, non-identifying data.
+  useEffect(() => {
+    if (activeSection !== "overview") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setOverview(null);
+      setOverviewError("");
+      setOverviewLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setOverviewLoading(true);
+    setOverviewError("");
+
+    getAdminOverview()
+      .then((data) => { if (active) { setOverview(data); setOverviewError(""); } })
+      .catch((error) => { if (active) { setOverview(null); setOverviewError(getAdminOverviewErrorMessage(error)); } })
+      .finally(() => { if (active) setOverviewLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading]);
+
+  // The Users section is a live, read-only customer directory. An approved admin
+  // cannot read other profiles directly (RLS exposes them to the owner only), so
+  // the list comes from the read-only admin_customer_directory() RPC, which
+  // authorizes the caller with has_admin_access() and returns only display fields.
+  useEffect(() => {
+    if (activeSection !== "users") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setCustomers([]);
+      setCustomersError("");
+      setCustomersLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setCustomersLoading(true);
+    setCustomersError("");
+
+    getAdminCustomerDirectory()
+      .then((data) => { if (active) { setCustomers(data); setCustomersError(""); } })
+      .catch((error) => { if (active) { setCustomers([]); setCustomersError(getAdminCustomerDirectoryErrorMessage(error)); } })
+      .finally(() => { if (active) setCustomersLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, customersRefreshKey]);
+
+  // The Services section is a live, read-only catalog directory. An approved
+  // admin can only read ACTIVE services through RLS (the owner-only policy exposes
+  // the rest), so the list comes from the read-only admin_services_directory()
+  // RPC, which authorizes the caller with has_admin_access() and returns only the
+  // catalog display fields.
+  useEffect(() => {
+    if (activeSection !== "services") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setServices([]);
+      setServicesError("");
+      setServicesLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setServicesLoading(true);
+    setServicesError("");
+
+    getAdminServicesDirectory()
+      .then((data) => { if (active) { setServices(data); setServicesError(""); } })
+      .catch((error) => { if (active) { setServices([]); setServicesError(getAdminServicesDirectoryErrorMessage(error)); } })
+      .finally(() => { if (active) setServicesLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, servicesRefreshKey]);
+
+  // The Orders section is a live, read-only directory. The only SELECT policies on
+  // public.orders expose rows to the owning client and the owner; an approved admin
+  // can read none of them directly. So the list comes from the read-only
+  // admin_orders_directory() RPC, which authorizes the caller with
+  // has_admin_access() and returns only the order display fields (no client id and
+  // no client-written free text).
+  useEffect(() => {
+    if (activeSection !== "orders") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setOrders([]);
+      setOrdersError("");
+      setOrdersLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setOrdersLoading(true);
+    setOrdersError("");
+
+    getAdminOrdersDirectory()
+      .then((data) => { if (active) { setOrders(data); setOrdersError(""); } })
+      .catch((error) => { if (active) { setOrders([]); setOrdersError(getAdminOrdersDirectoryErrorMessage(error)); } })
+      .finally(() => { if (active) setOrdersLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, ordersRefreshKey]);
 
   // The Messages link is owner-only and fails closed: it stays hidden for
   // guests, for customers, and while the server-side owner check is pending or
@@ -123,16 +277,35 @@ function AdminDashboard() {
     [isOwner],
   );
 
-  const filteredServices = useMemo(() => sellerServices.filter((service) => {
-    const matchesStatus = statusFilter === "all" || service.status === statusFilter;
-    const query = search.trim().toLowerCase();
-    const matchesSearch = !query || [service.title, service.seller, service.category, service.ownerUsername]
-      .some((value) => String(value || "").toLowerCase().includes(query));
-    return matchesStatus && matchesSearch;
-  }), [sellerServices, statusFilter, search]);
+  const filteredServicesList = useMemo(
+    () => filterAdminServices(services, { query: search, status: serviceStatusFilter }),
+    [services, search, serviceStatusFilter],
+  );
 
-  const publishedCount = sellerServices.filter((service) => service.status === "published").length;
-  const pendingCount = sellerServices.filter((service) => service.status === "pending").length;
+  const filteredCustomers = useMemo(
+    () => filterCustomerDirectory(customers, search),
+    [customers, search],
+  );
+
+  const filteredOrdersList = useMemo(
+    () => filterAdminOrders(orders, { query: search, status: orderStatusFilter }),
+    [orders, search, orderStatusFilter],
+  );
+
+  // Overview, Users, Services and Orders are backed by live server data; the
+  // remaining sections are still browser previews.
+  const isPreviewSection = !isMessagesSection
+    && activeSection !== "overview"
+    && activeSection !== "users"
+    && activeSection !== "services"
+    && activeSection !== "orders";
+
+  const overviewStats = [
+    { key: "customers", label: "Total customers", Icon: UserRound, hint: "Customer profiles on file", value: overview?.totalCustomers },
+    { key: "services", label: "Published services", Icon: BriefcaseBusiness, hint: "Active services in the catalog", value: overview?.publishedServices },
+    { key: "pending", label: "Pending orders", Icon: ClipboardList, hint: "Orders awaiting action", value: overview?.pendingOrders },
+    { key: "orders", label: "Total orders", Icon: ShoppingBag, hint: "All customer orders", value: overview?.totalOrders },
+  ];
 
   const logAction = (description) => {
     setActivity((current) => [{
@@ -140,31 +313,6 @@ function AdminDashboard() {
       description,
       time: new Date().toLocaleString(),
     }, ...current]);
-  };
-
-  const beginServiceAction = (service, status) => {
-    setPendingAction({ service, status });
-    setActionReason("");
-    setActionError("");
-  };
-
-  const completeServiceAction = (event) => {
-    event.preventDefault();
-    const reason = actionReason.trim();
-    if (!reason) {
-      setActionError("Enter a reason before continuing.");
-      return;
-    }
-    if (!window.confirm(`${pendingAction.status === "removed" ? "Remove" : "Reject"} “${pendingAction.service.title}” in this browser preview?`)) return;
-    const { service, status } = pendingAction;
-    const saved = saveSellerService({ ...service, status, adminReason: reason }, service.ownerUsername);
-    if (!saved) {
-      setActionError("The service could not be updated in the current preview.");
-      return;
-    }
-    logAction(`${formatStatus(status)} service “${service.title}” · ${reason}`);
-    setNotice(`Service marked ${status} in this browser preview only. This change is not saved to a server.`);
-    setPendingAction(null);
   };
 
   const saveCategory = (event) => {
@@ -218,9 +366,7 @@ function AdminDashboard() {
   };
 
   const unavailableSections = {
-    users: ["User management", "No account directory is connected. Customer and seller records cannot be listed or changed."],
     sellers: ["Seller management", "Seller profiles and application decisions are not available without an account and seller-application backend."],
-    orders: ["Order management", "No order system is connected. Customer orders and payment details are not available."],
     reports: ["Reports & reviews", "No reporting or review moderation backend is connected. No reports or reviews are available."],
   };
 
@@ -242,7 +388,6 @@ function AdminDashboard() {
               aria-current={activeSection === key ? "page" : undefined}
             >
               <Icon size={17} aria-hidden="true" /><span>{label}</span>
-              {key === "services" && pendingCount > 0 && <small>{pendingCount}</small>}
             </Link>
           ))}
         </nav>
@@ -278,7 +423,7 @@ function AdminDashboard() {
             <div className="admin-profile-wrap">
               <button className="admin-profile-button" type="button" onClick={() => setProfileOpen((current) => !current)} aria-expanded={profileOpen}>
                 <span className="admin-avatar">TS</span>
-                <span className="admin-profile-copy"><strong>Admin preview</strong><small>Demo workspace</small></span>
+                <span className="admin-profile-copy"><strong>Administrator</strong><small>Server-verified access</small></span>
                 <ChevronDown size={14} />
               </button>
               {profileOpen && (
@@ -298,15 +443,25 @@ function AdminDashboard() {
             <div>
               <span className="market-eyebrow">NEXTECH · ADMIN WORKSPACE</span>
               <h1>{activeSection === "overview" ? "Platform overview" : activeItem.label}</h1>
-              <p>{isMessagesSection ? "Read and reply to every customer conversation. Access is verified on the server before any message is written." : "Manage your marketplace preview and review platform activity."}</p>
+              <p>{isMessagesSection
+                ? "Read and reply to every customer conversation. Access is verified on the server before any message is written."
+                : activeSection === "overview"
+                  ? "Live totals and the most recent customer orders, read from the server for the owner and approved admins."
+                  : activeSection === "users"
+                    ? "Verified customer accounts read from the server. Account status is not tracked, so the real account role is shown."
+                    : activeSection === "services"
+                      ? "Live services read from the server for the owner and approved admins. This catalog view is read-only."
+                      : activeSection === "orders"
+                        ? "Live orders read from the server for the owner and approved admins. Client identity and client-written details are never shown, and this view is read-only."
+                        : "Manage your marketplace preview and review platform activity."}</p>
             </div>
-            {!isMessagesSection && <div className="admin-status-chip"><span /> Demo mode</div>}
+            {isPreviewSection && <div className="admin-status-chip"><span /> Demo mode</div>}
           </div>
 
-          {!isMessagesSection && (
+          {isPreviewSection && (
             <div className="admin-security-notice" role="note">
               <AlertTriangle size={17} />
-              <p><strong>Access is verified; the workspace data is a preview.</strong> Entry to this dashboard is checked on the server against the owner record and approved admins. Most sections still show no live records, and preview changes are kept in browser memory only.</p>
+              <p><strong>Access is verified; this section is still a preview.</strong> Entry to this dashboard is checked on the server against the owner record and approved admins. This section has no live records yet, and preview changes are kept in browser memory only.</p>
             </div>
           )}
 
@@ -320,27 +475,113 @@ function AdminDashboard() {
 
           {activeSection === "overview" && (
             <>
+              {overviewLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading live platform data from the server…
+                </div>
+              )}
+
+              {!overviewLoading && overviewError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Live data unavailable.</strong> {overviewError}</p>
+                </div>
+              )}
+
               <div className="admin-stats-grid">
-                <article className="admin-stat-card"><span><UserRound size={17} /></span><small>Total users</small><strong>Unavailable</strong><p>Account backend not connected</p></article>
-                <article className="admin-stat-card"><span><Store size={17} /></span><small>Total sellers</small><strong>Unavailable</strong><p>Account backend not connected</p></article>
-                <article className="admin-stat-card"><span><BriefcaseBusiness size={17} /></span><small>Published services</small><strong>{publishedCount}</strong><p>Seller-created services in this session</p></article>
-                <article className="admin-stat-card"><span><ClipboardList size={17} /></span><small>Pending approvals</small><strong>{pendingCount || "Unavailable"}</strong><p>{pendingCount ? "Preview services awaiting review" : "Approval workflow not connected"}</p></article>
-                <article className="admin-stat-card"><span><ShoppingBag size={17} /></span><small>Total orders</small><strong>Unavailable</strong><p>Order backend not connected</p></article>
-                <article className="admin-stat-card"><span><AlertTriangle size={17} /></span><small>Open reports</small><strong>Unavailable</strong><p>Reports backend not connected</p></article>
+                {overviewStats.map(({ key, label, Icon, hint, value }) => (
+                  <article className="admin-stat-card" key={key}>
+                    <span><Icon size={17} /></span>
+                    <small>{label}</small>
+                    <strong>{overviewLoading ? "…" : overviewError ? "Unavailable" : (value ?? "—")}</strong>
+                    <p>{overviewError ? "Could not be read from the server" : hint}</p>
+                  </article>
+                ))}
               </div>
-              <div className="admin-overview-grid">
-                <section className="admin-panel">
-                  <AdminPageHeading eyebrow="LATEST CHANGES" title="Recent activity" />
-                  {activity.length ? (
-                    <div className="admin-activity-list">{activity.slice(0, 5).map((item) => <div className="admin-activity-row" key={item.id}><span><Activity size={15} /></span><div><strong>{item.description}</strong><small>{item.time} · Browser preview</small></div></div>)}</div>
-                  ) : <EmptyState title="No activity yet">Admin actions are not logged on a server. Preview actions will appear here until this page is refreshed.</EmptyState>}
-                </section>
-                <section className="admin-panel">
-                  <AdminPageHeading eyebrow="ORDER ACTIVITY" title="Recent orders" />
-                  <EmptyState title="Order data unavailable">There is no order backend connected, so real order records cannot be displayed.</EmptyState>
-                </section>
-              </div>
+
+              <section className="admin-panel">
+                <AdminPageHeading eyebrow="ORDER ACTIVITY" title="Recent orders">
+                  The five most recent orders, read from the server. Customer identity is never included.
+                </AdminPageHeading>
+                {overviewLoading ? (
+                  <EmptyState title="Loading recent orders">Fetching the latest orders from the server.</EmptyState>
+                ) : overviewError ? (
+                  <EmptyState title="Recent orders unavailable">{overviewError}</EmptyState>
+                ) : overview?.recentOrders?.length ? (
+                  <div className="admin-activity-list">
+                    {overview.recentOrders.map((order, index) => (
+                      <div className="admin-activity-row" key={`${order.createdAt}-${index}`}>
+                        <span><ShoppingBag size={15} /></span>
+                        <div>
+                          <strong>{order.serviceName || "Service order"}{order.projectName ? ` · ${order.projectName}` : ""}</strong>
+                          <small>{formatClientOrderStatus(order.status)} · {formatClientOrderPrice(order.price, order.currency)} · {formatClientOrderDate(order.createdAt)}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState title="No orders yet">When a customer places an order, it will appear here.</EmptyState>
+                )}
+              </section>
             </>
+          )}
+
+          {activeSection === "users" && (
+            <section className="admin-panel">
+              <AdminPageHeading eyebrow="CUSTOMER DIRECTORY" title="Users">
+                Verified customer accounts, read from the server for the owner and approved admins. Public profiles have no account-status field, so the real account role is shown instead of an invented status.
+              </AdminPageHeading>
+
+              <div className="admin-filter-row" role="group" aria-label="Customer directory actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setCustomersRefreshKey((current) => current + 1)}
+                  disabled={customersLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {customersLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {customersLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the customer directory from the server…
+                </div>
+              )}
+
+              {!customersLoading && customersError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Customer directory unavailable.</strong> {customersError}</p>
+                </div>
+              )}
+
+              {!customersLoading && !customersError && (filteredCustomers.length ? (
+                <div className="admin-activity-list">
+                  {filteredCustomers.map((customer, index) => (
+                    <div className="admin-activity-row" key={`${customer.email}-${customer.createdAt}-${index}`}>
+                      <span><UserRound size={15} /></span>
+                      <div>
+                        <strong>{customer.name || customer.username || "Unnamed customer"}</strong>
+                        <small>
+                          {[
+                            customer.email || "No email on file",
+                            customer.role ? formatStatus(customer.role) : "Customer",
+                            formatCustomerCreatedDate(customer.createdAt),
+                          ].join(" · ")}
+                        </small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : customers.length ? (
+                <EmptyState title="No matching customers">No customer name matches this search. Try a different name.</EmptyState>
+              ) : (
+                <EmptyState title="No customer records yet">No verified customer accounts exist on the server yet.</EmptyState>
+              ))}
+            </section>
           )}
 
           {unavailableSections[activeSection] && (
@@ -352,42 +593,136 @@ function AdminDashboard() {
 
           {activeSection === "services" && (
             <section className="admin-panel">
-              <AdminPageHeading eyebrow="SERVICE MODERATION" title="Services" >
-                Only services created in the current browser session are shown. The existing seller workflow does not provide an approval queue.
+              <AdminPageHeading eyebrow="SERVICE CATALOG" title="Services">
+                Live services, read from the server for the owner and approved admins. Services have no seller or category column in the database, so only the real catalog fields are shown. This view is read-only.
               </AdminPageHeading>
+
               <div className="admin-filter-row" role="group" aria-label="Filter services by status">
-                {statusFilters.map((status) => <button key={status} type="button" className={statusFilter === status ? "active" : ""} onClick={() => setStatusFilter(status)}>{status === "all" ? "All" : formatStatus(status)}</button>)}
+                {serviceStatusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={serviceStatusFilter === status ? "active" : ""}
+                    onClick={() => setServiceStatusFilter(status)}
+                  >
+                    {status === "all" ? "All" : formatStatus(status)}
+                  </button>
+                ))}
               </div>
-              {filteredServices.length ? (
-                <div className="admin-service-list">
-                  {filteredServices.map((service) => (
-                    <article className="admin-service-row" key={service.id}>
-                      {service.image && <img src={service.image} alt="" />}
-                      <div className="admin-service-details">
-                        <span>{service.category || "Uncategorized"} · Seller listing preview</span>
-                        <h3>{service.title}</h3>
-                        <p>{service.description}</p>
-                        <small>PKR {new Intl.NumberFormat("en-PK").format(service.price || 0)} · {formatStatus(service.status)}</small>
+
+              <div className="admin-filter-row" role="group" aria-label="Services directory actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setServicesRefreshKey((current) => current + 1)}
+                  disabled={servicesLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {servicesLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {servicesLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the services directory from the server…
+                </div>
+              )}
+
+              {!servicesLoading && servicesError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Services directory unavailable.</strong> {servicesError}</p>
+                </div>
+              )}
+
+              {!servicesLoading && !servicesError && (filteredServicesList.length ? (
+                <div className="admin-activity-list">
+                  {filteredServicesList.map((service) => (
+                    <div className="admin-activity-row" key={service.id}>
+                      <span><BriefcaseBusiness size={15} /></span>
+                      <div>
+                        <strong>{service.name || "Untitled service"}</strong>
+                        <small>{service.active ? "Active" : "Inactive"} · {formatClientOrderPrice(service.price, service.currency)} · Created {formatClientOrderDate(service.createdAt)}</small>
                       </div>
-                      <div className={`admin-status-pill ${service.status}`}>{formatStatus(service.status)}</div>
-                      {(service.status === "published" || service.status === "pending") && (
-                        <div className="admin-row-actions">
-                          {service.status === "pending" && <button type="button" onClick={() => {
-                            if (!window.confirm(`Approve “${service.title}” in this browser preview?`)) return;
-                            if (!saveSellerService({ ...service, status: "published" }, service.ownerUsername)) {
-                              setNotice("The service could not be updated in the current preview.");
-                              return;
-                            }
-                            logAction(`Approved service “${service.title}”`);
-                            setNotice("Service approved in this browser preview only; this change is not saved to a server.");
-                          }}><Check size={14} /> Approve</button>}
-                          <button type="button" className="danger" onClick={() => beginServiceAction(service, service.status === "pending" ? "rejected" : "removed")}><Trash2 size={14} /> {service.status === "pending" ? "Reject" : "Remove"}</button>
-                        </div>
-                      )}
-                    </article>
+                    </div>
                   ))}
                 </div>
-              ) : <EmptyState title={search ? "No matching services" : "No services in this session"}>{search ? "Try a different search term or status filter." : "Create a service from the seller dashboard in this browser session to see it here. Sample marketplace listings are not admin-managed records."}</EmptyState>}
+              ) : services.length ? (
+                <EmptyState title="No matching services">No service matches this search or status filter. Try a different term or filter.</EmptyState>
+              ) : (
+                <EmptyState title="No services yet">No services exist in the catalog on the server yet.</EmptyState>
+              ))}
+            </section>
+          )}
+
+          {activeSection === "orders" && (
+            <section className="admin-panel">
+              <AdminPageHeading eyebrow="ORDER DIRECTORY" title="Orders">
+                Live orders, read from the server for the owner and approved admins. Customer identity and the customer's written description and requirements are private and are never shown. This view is read-only.
+              </AdminPageHeading>
+
+              <div className="admin-filter-row" role="group" aria-label="Filter orders by status">
+                {orderStatusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={orderStatusFilter === status ? "active" : ""}
+                    onClick={() => setOrderStatusFilter(status)}
+                  >
+                    {status === "all" ? "All" : formatClientOrderStatus(status)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-filter-row" role="group" aria-label="Orders directory actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setOrdersRefreshKey((current) => current + 1)}
+                  disabled={ordersLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {ordersLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {ordersLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the orders directory from the server…
+                </div>
+              )}
+
+              {!ordersLoading && ordersError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Orders directory unavailable.</strong> {ordersError}</p>
+                </div>
+              )}
+
+              {!ordersLoading && !ordersError && (filteredOrdersList.length ? (
+                <div className="admin-activity-list">
+                  {filteredOrdersList.map((order, index) => (
+                    <div className="admin-activity-row" key={order.id || `${order.createdAt}-${index}`}>
+                      <span><ShoppingBag size={15} /></span>
+                      <div>
+                        <strong>{order.serviceName || "Service order"}{order.projectName ? ` · ${order.projectName}` : ""}</strong>
+                        <small>
+                          {[
+                            formatClientOrderStatus(order.status),
+                            formatClientOrderPrice(order.price, order.currency),
+                            formatClientOrderDate(order.createdAt),
+                            order.id ? `ID ${order.id.slice(0, 8)}` : "No ID",
+                          ].join(" · ")}
+                        </small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : orders.length ? (
+                <EmptyState title="No matching orders">No order matches this search or status filter. Try a different term or filter.</EmptyState>
+              ) : (
+                <EmptyState title="No orders yet">No customer orders exist on the server yet.</EmptyState>
+              ))}
             </section>
           )}
 
@@ -442,21 +777,6 @@ function AdminDashboard() {
           )}
         </section>
       </div>
-
-      {pendingAction && (
-        <div className="admin-modal-backdrop" role="presentation">
-          <form className="admin-confirm-modal" onSubmit={completeServiceAction} role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title">
-            <button className="admin-modal-close" type="button" onClick={() => setPendingAction(null)} aria-label="Cancel action"><X size={17} /></button>
-            <span className="admin-modal-icon"><AlertTriangle size={19} /></span>
-            <h2 id="admin-confirm-title">{pendingAction.status === "removed" ? "Remove service?" : "Reject service?"}</h2>
-            <p>This affects only the current browser preview. Enter a reason to continue.</p>
-            <label htmlFor="admin-action-reason">Reason</label>
-            <textarea id="admin-action-reason" value={actionReason} onChange={(event) => setActionReason(event.target.value)} rows="3" required autoFocus />
-            {actionError && <p className="admin-form-error" role="alert">{actionError}</p>}
-            <div className="admin-form-actions"><button className="admin-danger-button" type="submit">{pendingAction.status === "removed" ? "Remove service" : "Reject service"}</button><button className="admin-secondary-button" type="button" onClick={() => setPendingAction(null)}>Cancel</button></div>
-          </form>
-        </div>
-      )}
     </main>
   );
 }

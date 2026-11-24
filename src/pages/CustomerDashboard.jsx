@@ -45,6 +45,16 @@ import {
   getOrderLoadErrorMessage,
 } from "../lib/orders.js";
 import { validateClientProfileDraft } from "../lib/profileValidation.js";
+import {
+  formatReviewRating,
+  formatReviewStatus,
+  getMyReviews,
+  getReviewsLoadErrorMessage,
+  getSubmitReviewErrorMessage,
+  maximumReviewBodyLength,
+  submitOrderReview,
+  validateReviewDraft,
+} from "../lib/reviews.js";
 
 const customerNavigation = [
   { key: "overview", label: "Overview", Icon: LayoutDashboard },
@@ -262,6 +272,217 @@ function AccountSettings({ preferences, setPreferences }) {
         </form>
       </section>
     </>
+  );
+}
+
+function StarRatingInput({ value, onChange, disabled }) {
+  const [hovered, setHovered] = useState(0);
+  const shown = hovered || value;
+  return (
+    <span className="dashboard-review-star-input" role="radiogroup" aria-label="Rating from 1 to 5 stars">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          role="radio"
+          aria-checked={value === star}
+          aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
+          className={star <= shown ? "active" : ""}
+          disabled={disabled}
+          onClick={() => onChange(star)}
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          onFocus={() => setHovered(star)}
+          onBlur={() => setHovered(0)}
+        >
+          <Star size={18} fill={star <= shown ? "currentColor" : "none"} />
+        </button>
+      ))}
+      <span className="dashboard-review-star-value" aria-hidden="true">{value ? `${value}/5` : "Select a rating"}</span>
+    </span>
+  );
+}
+
+// One form per unreviewed completed order. The browser sends only the rating and
+// the optional body — the database trigger derives the reviewer identity, the
+// pending status and the moderation fields, so nothing here can forge them.
+function ReviewForm({ order, onSubmitted }) {
+  const [rating, setRating] = useState(0);
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const submittingRef = useRef(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (submittingRef.current) return;
+    setFormError("");
+    const { rating: safeRating, body: safeBody, error: validationError } = validateReviewDraft({ rating, body });
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const review = await submitOrderReview({ orderId: order.id, rating: safeRating, body: safeBody });
+      onSubmitted(review);
+    } catch (error) {
+      setFormError(getSubmitReviewErrorMessage(error));
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="dashboard-review-form" onSubmit={submit} noValidate>
+      <div className="dashboard-review-form-heading">
+        <h3>{order.service_name}</h3>
+        <small>Order ID · {order.id}</small>
+      </div>
+      <label>
+        Your rating
+        <StarRatingInput value={rating} onChange={setRating} disabled={submitting} />
+      </label>
+      <label>
+        Your feedback <span className="dashboard-review-counter">Optional · {Array.from(body).length}/{maximumReviewBodyLength}</span>
+        <textarea
+          rows="4"
+          maxLength={maximumReviewBodyLength}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          placeholder="Share what went well or what could be improved."
+          disabled={submitting}
+        />
+      </label>
+      {formError && <p className="dashboard-form-error" role="alert">{formError}</p>}
+      <button className="market-button market-button-primary" type="submit" disabled={submitting || rating === 0}>
+        {submitting ? "Submitting…" : "Submit review"}
+      </button>
+    </form>
+  );
+}
+
+function ReviewsSection() {
+  const { user, loading: authLoading } = useAuth();
+  const [reviews, setReviews] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return undefined;
+    }
+    if (!user?.id) {
+      setReviews([]);
+      setOrders([]);
+      setError("");
+      setLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setLoading(true);
+    setError("");
+    Promise.all([getMyReviews(user.id), getClientOrders(user.id)])
+      .then(([loadedReviews, loadedOrders]) => {
+        if (!active) return;
+        setReviews(loadedReviews);
+        setOrders(loadedOrders);
+      })
+      .catch((loadError) => {
+        if (active) setError(getReviewsLoadErrorMessage(loadError));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authLoading, user?.id, loadAttempt]);
+
+  const reviewedOrderIds = useMemo(
+    () => new Set(reviews.map((review) => review.order_id)),
+    [reviews],
+  );
+  const completedOrders = useMemo(
+    () => orders.filter((order) => order.status === "completed"),
+    [orders],
+  );
+  const awaitingReview = completedOrders.filter((order) => !reviewedOrderIds.has(order.id));
+
+  const handleSubmitted = (review) => {
+    setReviews((current) => [review, ...current]);
+    setNotice("Thanks! Your review was submitted and is awaiting moderation.");
+  };
+
+  return (
+    <section className="dashboard-panel">
+      <DashboardSectionHeading
+        eyebrow="YOUR FEEDBACK"
+        title="My reviews"
+        description="Review the orders you have completed. Each completed order can be reviewed once, and submitted reviews cannot be changed."
+      />
+      {notice && <p className="dashboard-form-success" role="status">{notice}</p>}
+      {authLoading || loading
+        ? <div className="dashboard-review-loading" role="status" aria-label="Loading your reviews">
+          <span className="dashboard-order-skeleton-line dashboard-order-skeleton-title" />
+          <span className="dashboard-order-skeleton-line" />
+        </div>
+        : !user
+          ? <EmptyState icon={Star} title="Sign in to review your orders">Your reviews are private to your NexTech account.</EmptyState>
+          : error
+            ? <div className="dashboard-orders-error" role="alert">
+              <p>{error}</p>
+              <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+            </div>
+            : <>
+              {awaitingReview.length > 0 && (
+                <>
+                  <h3 className="dashboard-review-subheading">Awaiting your review</h3>
+                  <div className="dashboard-review-list">
+                    {awaitingReview.map((order) => (
+                      <article className="dashboard-review-card" key={order.id}>
+                        <ReviewForm order={order} onSubmitted={handleSubmitted} />
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
+              <h3 className="dashboard-review-subheading">Submitted reviews</h3>
+              {reviews.length === 0
+                ? <EmptyState icon={Star} title="No reviews yet">
+                  {completedOrders.length === 0
+                    ? "You can review an order once it has been completed."
+                    : "Complete a review above to see it listed here."}
+                </EmptyState>
+                : <div className="dashboard-review-list">
+                  {reviews.map((review) => {
+                    const statusKey = ["pending", "published", "rejected"].includes(review.status) ? review.status : "pending";
+                    return (
+                      <article className="dashboard-review-card" key={review.id}>
+                        <div className="dashboard-review-card-heading">
+                          <div>
+                            <span className="dashboard-review-rating" aria-label={`${review.rating} out of 5 stars`}>{formatReviewRating(review.rating)}</span>
+                            <small>Submitted {formatClientOrderDate(review.created_at)}</small>
+                          </div>
+                          <span className={`dashboard-review-status dashboard-review-status-${statusKey}`}>{formatReviewStatus(review.status)}</span>
+                        </div>
+                        {review.body
+                          ? <p className="dashboard-review-body">{review.body}</p>
+                          : <p className="dashboard-review-body dashboard-review-empty-body">No written feedback was added.</p>}
+                      </article>
+                    );
+                  })}
+                </div>}
+            </>}
+    </section>
   );
 }
 
@@ -814,14 +1035,7 @@ export default function CustomerDashboard() {
     </section>
   );
 
-  const renderReviews = () => (
-    <section className="dashboard-panel">
-      <DashboardSectionHeading eyebrow="YOUR FEEDBACK" title="My reviews" description="Reviews are not connected to an order or review service." />
-      <EmptyState icon={Star} title="No reviews available">
-        NexTech has no review backend, and this demo does not create ratings or review records.
-      </EmptyState>
-    </section>
-  );
+  const renderReviews = () => <ReviewsSection />;
 
   const renderProfile = () => (
     <section className="dashboard-panel">

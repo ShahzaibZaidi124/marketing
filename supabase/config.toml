@@ -9,5 +9,8 @@ verify_jwt = true
 [functions.mark-read]
 verify_jwt = true
 
+[functions.review-admin-application]
+verify_jwt = true
+
 [edge_runtime.secrets]
 CORS_ALLOWED_ORIGINS = "https://nextech5.vercel.app"

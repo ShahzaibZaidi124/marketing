@@ -248,7 +248,7 @@ function AdminDashboard() {
         </nav>
         <div className="admin-sidebar-foot">
           <Shield size={15} />
-          <span>Preview only<br /><small>No admin authentication or API</small></span>
+          <span>Server-verified access<br /><small>Owner &amp; approved admins</small></span>
         </div>
       </aside>
 
@@ -283,8 +283,9 @@ function AdminDashboard() {
               </button>
               {profileOpen && (
                 <div className="admin-profile-menu">
-                  <strong>Public preview</strong>
-                  <p>This interface does not verify an admin identity.</p>
+                  <strong>Server-verified access</strong>
+                  <p>Your admin access was confirmed on the server.</p>
+                  <Link to="/admin-access" onClick={() => setProfileOpen(false)}>Admin access</Link>
                   <Link to="/" onClick={() => setProfileOpen(false)}>Visit marketplace</Link>
                 </div>
               )}
@@ -305,7 +306,7 @@ function AdminDashboard() {
           {!isMessagesSection && (
             <div className="admin-security-notice" role="note">
               <AlertTriangle size={17} />
-              <p><strong>Not a secure admin system.</strong> No backend, database, sign-in, or server-side role checks are connected. This page is publicly accessible; preview changes are in browser memory only. Do not use it to manage real accounts or sensitive data.</p>
+              <p><strong>Access is verified; the workspace data is a preview.</strong> Entry to this dashboard is checked on the server against the owner record and approved admins. Most sections still show no live records, and preview changes are kept in browser memory only.</p>
             </div>
           )}
 

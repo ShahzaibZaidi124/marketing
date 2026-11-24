@@ -23,8 +23,9 @@ import {
 } from "./pages/SellerPages.jsx";
 import ServiceEditor from "./pages/ServiceEditor.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import AdminAccess from "./pages/AdminAccess.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
-import { RequireAuth } from "./components/RouteGuards.jsx";
+import { RequireAdminAccess, RequireAuth } from "./components/RouteGuards.jsx";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -40,14 +41,17 @@ function ScrollToTop() {
 
 export default function App() {
   const { pathname } = useLocation();
-  const isAdminRoute = pathname.startsWith("/admin");
+  // "/admin-access" is a normal, header-bearing page; only the dashboard
+  // ("/admin" and its children) hides the site chrome.
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
 
   return (
     <>
       <ScrollToTop />
       {!isAdminRoute && <Header />}
       <Routes>
-        <Route path="/admin/*" element={<AdminDashboard />} />
+        <Route path="/admin-access" element={<RequireAuth><AdminAccess /></RequireAuth>} />
+        <Route path="/admin/*" element={<RequireAdminAccess><AdminDashboard /></RequireAdminAccess>} />
         <Route path="/" element={<Home />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/templates/:id" element={<TemplateDetail />} />

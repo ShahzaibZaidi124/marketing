@@ -9,6 +9,7 @@ const links = [
   { label: "Explore Services", to: "/services" },
   { label: "Messages", to: "/messages" },
   { label: "Dashboard", to: "/customer/dashboard" },
+  { label: "Admin", to: "/admin-access" },
   { label: "Categories", to: "/#categories" },
   { label: "Become a Seller", to: "/seller" },
 ];

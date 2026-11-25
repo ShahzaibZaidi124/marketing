@@ -8,10 +8,13 @@ import {
   Check,
   Clock3,
   Code2,
+  Flag,
   MonitorSmartphone,
 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import ReportForm from "../components/ReportForm.jsx";
 import { serviceDetailsByCategory, servicePackages } from "../data/services.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const frequentlyAskedQuestions = [
@@ -95,11 +98,16 @@ export default function ServiceDetails() {
   const packageOptions = service?.packages || servicePackages;
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedPackageId, setSelectedPackageId] = useState(packageParam || "basic");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNotice, setReportNotice] = useState("");
+  const { user, loading: authLoading } = useAuth();
   const selectedPackage = packageOptions.find((item) => item.id === selectedPackageId) || packageOptions[0];
 
   useEffect(() => {
     setSelectedImage(0);
     setSelectedPackageId(packageOptions.some((item) => item.id === packageParam) ? packageParam : packageOptions[0]?.id || "");
+    setReportOpen(false);
+    setReportNotice("");
   }, [id, packageParam, packageOptions]);
 
   useEffect(() => {
@@ -261,6 +269,32 @@ export default function ServiceDetails() {
           ))}
         </div>
       </section>}
+
+      <section className="service-detail-section service-report-section">
+        <div className="service-detail-section-heading"><span className="market-eyebrow">Something not right?</span><h2>Report this service</h2><p>Tell the NexTech team if this listing breaks our guidelines. Reports are private and reviewed by the team.</p></div>
+        {reportNotice && <p className="report-notice" role="status">{reportNotice}</p>}
+        {authLoading
+          ? <p className="report-hint" role="status">Checking your account…</p>
+          : !user
+            ? <p className="report-hint">Sign in to your NexTech account to report this service.</p>
+            : reportOpen
+              ? <ReportForm
+                targetType="service"
+                targetId={service.id}
+                onCancel={() => setReportOpen(false)}
+                onSubmitted={() => {
+                  setReportOpen(false);
+                  setReportNotice("Thanks. Your report was submitted and the NexTech team will review it.");
+                }}
+              />
+              : <button
+                className="market-button market-button-outline service-report-button"
+                type="button"
+                onClick={() => { setReportNotice(""); setReportOpen(true); }}
+              >
+                <Flag size={15} /> Report this service
+              </button>}
+      </section>
     </main>
   );
 }

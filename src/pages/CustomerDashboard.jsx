@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   ExternalLink,
+  Flag,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout.jsx";
+import ReportForm from "../components/ReportForm.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 import {
@@ -146,6 +148,9 @@ function OrderCardSkeleton() {
 }
 
 function OrderDetails({ order, onBack }) {
+  const { user } = useAuth();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNotice, setReportNotice] = useState("");
   const requirements = order.requirements && typeof order.requirements === "object" && !Array.isArray(order.requirements)
     ? Object.entries(order.requirements)
     : [];
@@ -184,6 +189,30 @@ function OrderDetails({ order, onBack }) {
           </dl>
         </section>
       )}
+      <section className="dashboard-order-report">
+        <h3>Report this order</h3>
+        <p>Tell the NexTech team about a problem with this order. Reports are private and reviewed by the team.</p>
+        {reportNotice && <p className="dashboard-form-success" role="status">{reportNotice}</p>}
+        {!user
+          ? <p className="dashboard-inline-note">Sign in to your NexTech account to report this order.</p>
+          : reportOpen
+            ? <ReportForm
+              targetType="order"
+              targetId={order.id}
+              onCancel={() => setReportOpen(false)}
+              onSubmitted={() => {
+                setReportOpen(false);
+                setReportNotice("Thanks. Your report was submitted and the NexTech team will review it.");
+              }}
+            />
+            : <button
+              className="dashboard-text-link"
+              type="button"
+              onClick={() => { setReportNotice(""); setReportOpen(true); }}
+            >
+              <Flag size={14} /> Report this order
+            </button>}
+      </section>
     </section>
   );
 }

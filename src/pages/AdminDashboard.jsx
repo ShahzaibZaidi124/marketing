@@ -17,6 +17,7 @@ import {
   Settings,
   Shield,
   ShoppingBag,
+  Star,
   Store,
   Trash2,
   UserRound,
@@ -45,6 +46,22 @@ import {
   getAdminOrdersDirectoryErrorMessage,
 } from "../lib/adminOrdersDirectory.js";
 import {
+  adminReviewStatuses,
+  filterAdminReviews,
+  getAdminReviewsDirectory,
+  getAdminReviewsDirectoryErrorMessage,
+} from "../lib/adminReviewsDirectory.js";
+import {
+  adminReportStatuses,
+  filterAdminReports,
+  formatReportCategory,
+  formatReportStatus,
+  formatReportTargetType,
+  getAdminReportsDirectory,
+  getAdminReportsDirectoryErrorMessage,
+} from "../lib/adminReportsDirectory.js";
+import { formatReviewRating, formatReviewStatus } from "../lib/reviews.js";
+import {
   formatClientOrderDate,
   formatClientOrderPrice,
   formatClientOrderStatus,
@@ -59,7 +76,8 @@ const navigation = [
   { key: "sellers", label: "Sellers", Icon: Store },
   { key: "services", label: "Services", Icon: BriefcaseBusiness },
   { key: "orders", label: "Orders", Icon: ShoppingBag },
-  { key: "reports", label: "Reports & reviews", Icon: ClipboardList },
+  { key: "reviews", label: "Reviews", Icon: Star },
+  { key: "reports", label: "Reports", Icon: ClipboardList },
   { key: "categories", label: "Categories", Icon: FolderKanban },
   { key: "settings", label: "Platform settings", Icon: Settings },
   { key: "activity", label: "Activity log", Icon: Activity },
@@ -73,6 +91,15 @@ const serviceStatusOptions = ["all", "active", "inactive"];
 // The only status filter the live orders directory supports: the real status
 // column, whose allowed values are pending / active / completed / rejected.
 const orderStatusOptions = ["all", "pending", "active", "completed", "rejected"];
+
+// The only status filter the live reviews directory supports: the real
+// reviews.status column, whose allowed values are pending / published / rejected.
+const reviewStatusOptions = ["all", ...adminReviewStatuses];
+
+// The only status filter the live reports directory supports: the real
+// reports.status column, whose allowed values are pending / reviewing / resolved
+// / rejected (pending and reviewing are the open states).
+const reportStatusOptions = ["all", ...adminReportStatuses];
 
 function formatStatus(status) {
   return status === "published" ? "Published" : status.charAt(0).toUpperCase() + status.slice(1);
@@ -142,6 +169,16 @@ function AdminDashboard() {
   const [ordersError, setOrdersError] = useState("");
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+  const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0);
+  const [reviewStatusFilter, setReviewStatusFilter] = useState("all");
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState("");
+  const [reportsRefreshKey, setReportsRefreshKey] = useState(0);
+  const [reportStatusFilter, setReportStatusFilter] = useState("all");
 
   // The Overview shows real server data. An approved admin cannot read the
   // profiles/orders tables directly (RLS exposes them to the owner only), so the
@@ -254,6 +291,64 @@ function AdminDashboard() {
     return () => { active = false; };
   }, [activeSection, user, authLoading, ordersRefreshKey]);
 
+  // The Reviews section is a live, read-only directory. The only SELECT policies
+  // on public.reviews expose rows to the reviewer and the owner; an approved admin
+  // can read none of them directly. So the list comes from the read-only
+  // admin_reviews_directory() RPC, which authorizes the caller with
+  // has_admin_access() and returns only the review display fields (no reviewer id,
+  // no moderator id and no moderation fields).
+  useEffect(() => {
+    if (activeSection !== "reviews") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setReviews([]);
+      setReviewsError("");
+      setReviewsLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setReviewsLoading(true);
+    setReviewsError("");
+
+    getAdminReviewsDirectory()
+      .then((data) => { if (active) { setReviews(data); setReviewsError(""); } })
+      .catch((error) => { if (active) { setReviews([]); setReviewsError(getAdminReviewsDirectoryErrorMessage(error)); } })
+      .finally(() => { if (active) setReviewsLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, reviewsRefreshKey]);
+
+  // The Reports section is a live, read-only directory. The only SELECT policies
+  // on public.reports expose rows to the reporter and the owner; an approved admin
+  // can read none of them directly. So the list comes from the read-only
+  // admin_reports_directory() RPC, which authorizes the caller with
+  // has_admin_access() and returns only the report display fields (no reporter id,
+  // no resolver id and no resolution fields).
+  useEffect(() => {
+    if (activeSection !== "reports") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setReports([]);
+      setReportsError("");
+      setReportsLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setReportsLoading(true);
+    setReportsError("");
+
+    getAdminReportsDirectory()
+      .then((data) => { if (active) { setReports(data); setReportsError(""); } })
+      .catch((error) => { if (active) { setReports([]); setReportsError(getAdminReportsDirectoryErrorMessage(error)); } })
+      .finally(() => { if (active) setReportsLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, reportsRefreshKey]);
+
   // The Messages link is owner-only and fails closed: it stays hidden for
   // guests, for customers, and while the server-side owner check is pending or
   // unavailable. The inbox itself keeps its RequireOwner gate.
@@ -292,13 +387,25 @@ function AdminDashboard() {
     [orders, search, orderStatusFilter],
   );
 
-  // Overview, Users, Services and Orders are backed by live server data; the
-  // remaining sections are still browser previews.
+  const filteredReviewsList = useMemo(
+    () => filterAdminReviews(reviews, { query: search, status: reviewStatusFilter }),
+    [reviews, search, reviewStatusFilter],
+  );
+
+  const filteredReportsList = useMemo(
+    () => filterAdminReports(reports, { query: search, status: reportStatusFilter }),
+    [reports, search, reportStatusFilter],
+  );
+
+  // Overview, Users, Services, Orders, Reviews and Reports are backed by live
+  // server data; the remaining sections are still browser previews.
   const isPreviewSection = !isMessagesSection
     && activeSection !== "overview"
     && activeSection !== "users"
     && activeSection !== "services"
-    && activeSection !== "orders";
+    && activeSection !== "orders"
+    && activeSection !== "reviews"
+    && activeSection !== "reports";
 
   const overviewStats = [
     { key: "customers", label: "Total customers", Icon: UserRound, hint: "Customer profiles on file", value: overview?.totalCustomers },
@@ -367,7 +474,6 @@ function AdminDashboard() {
 
   const unavailableSections = {
     sellers: ["Seller management", "Seller profiles and application decisions are not available without an account and seller-application backend."],
-    reports: ["Reports & reviews", "No reporting or review moderation backend is connected. No reports or reviews are available."],
   };
 
   return (
@@ -453,7 +559,11 @@ function AdminDashboard() {
                       ? "Live services read from the server for the owner and approved admins. This catalog view is read-only."
                       : activeSection === "orders"
                         ? "Live orders read from the server for the owner and approved admins. Client identity and client-written details are never shown, and this view is read-only."
-                        : "Manage your marketplace preview and review platform activity."}</p>
+                        : activeSection === "reviews"
+                          ? "Live customer reviews read from the server for the owner and approved admins. Reviewer and moderator identities are never shown, and this view is read-only."
+                          : activeSection === "reports"
+                            ? "Live customer reports read from the server for the owner and approved admins. Reporter identity and personal information are never shown, and this view is read-only."
+                            : "Manage your marketplace preview and review platform activity."}</p>
             </div>
             {isPreviewSection && <div className="admin-status-chip"><span /> Demo mode</div>}
           </div>
@@ -722,6 +832,150 @@ function AdminDashboard() {
                 <EmptyState title="No matching orders">No order matches this search or status filter. Try a different term or filter.</EmptyState>
               ) : (
                 <EmptyState title="No orders yet">No customer orders exist on the server yet.</EmptyState>
+              ))}
+            </section>
+          )}
+
+          {activeSection === "reviews" && (
+            <section className="admin-panel">
+              <AdminPageHeading eyebrow="CUSTOMER REVIEWS" title="Reviews">
+                Live customer reviews, read from the server for the owner and approved admins. Reviewer and moderator identities are private and are never shown. This view is read-only.
+              </AdminPageHeading>
+
+              <div className="admin-filter-row" role="group" aria-label="Filter reviews by status">
+                {reviewStatusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={reviewStatusFilter === status ? "active" : ""}
+                    onClick={() => setReviewStatusFilter(status)}
+                  >
+                    {status === "all" ? "All" : formatReviewStatus(status)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-filter-row" role="group" aria-label="Reviews directory actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setReviewsRefreshKey((current) => current + 1)}
+                  disabled={reviewsLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {reviewsLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {reviewsLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the reviews directory from the server…
+                </div>
+              )}
+
+              {!reviewsLoading && reviewsError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Reviews directory unavailable.</strong> {reviewsError}</p>
+                </div>
+              )}
+
+              {!reviewsLoading && !reviewsError && (filteredReviewsList.length ? (
+                <div className="admin-activity-list">
+                  {filteredReviewsList.map((review, index) => (
+                    <div className="admin-activity-row" key={review.id || `${review.createdAt}-${index}`}>
+                      <span><Star size={15} /></span>
+                      <div>
+                        <strong>{review.serviceName || "Service review"}</strong>
+                        <small>{review.body ? review.body : "No written feedback."}</small>
+                        <small>
+                          {[
+                            formatReviewRating(review.rating),
+                            formatReviewStatus(review.status),
+                            formatClientOrderDate(review.createdAt),
+                          ].join(" · ")}
+                        </small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : reviews.length ? (
+                <EmptyState title="No matching reviews">No review matches this search or status filter. Try a different term or filter.</EmptyState>
+              ) : (
+                <EmptyState title="No reviews yet">No customer reviews exist on the server yet.</EmptyState>
+              ))}
+            </section>
+          )}
+
+          {activeSection === "reports" && (
+            <section className="admin-panel">
+              <AdminPageHeading eyebrow="CUSTOMER REPORTS" title="Reports">
+                Live customer reports, read from the server for the owner and approved admins. Reporter identity and personal information are private and are never shown. This view is read-only.
+              </AdminPageHeading>
+
+              <div className="admin-filter-row" role="group" aria-label="Filter reports by status">
+                {reportStatusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={reportStatusFilter === status ? "active" : ""}
+                    onClick={() => setReportStatusFilter(status)}
+                  >
+                    {status === "all" ? "All" : formatReportStatus(status)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-filter-row" role="group" aria-label="Reports directory actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setReportsRefreshKey((current) => current + 1)}
+                  disabled={reportsLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {reportsLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {reportsLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the reports directory from the server…
+                </div>
+              )}
+
+              {!reportsLoading && reportsError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Reports directory unavailable.</strong> {reportsError}</p>
+                </div>
+              )}
+
+              {!reportsLoading && !reportsError && (filteredReportsList.length ? (
+                <div className="admin-activity-list">
+                  {filteredReportsList.map((report, index) => (
+                    <div className="admin-activity-row" key={report.id || `${report.createdAt}-${index}`}>
+                      <span><ClipboardList size={15} /></span>
+                      <div>
+                        <strong>
+                          {`${formatReportTargetType(report.targetType)} · ${report.targetLabel || "Unnamed target"}`}
+                        </strong>
+                        <small>{`Category: ${formatReportCategory(report.category)}`}</small>
+                        <small>{report.reason ? report.reason : "No reason provided."}</small>
+                        <small>
+                          {[
+                            formatReportStatus(report.status),
+                            formatClientOrderDate(report.createdAt),
+                          ].join(" · ")}
+                        </small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : reports.length ? (
+                <EmptyState title="No matching reports">No report matches this search or status filter. Try a different term or filter.</EmptyState>
+              ) : (
+                <EmptyState title="No reports yet">No customer reports exist on the server yet.</EmptyState>
               ))}
             </section>
           )}

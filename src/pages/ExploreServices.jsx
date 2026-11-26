@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ListFilter, Search, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import MarketplaceServiceCard from "../components/MarketplaceServiceCard.jsx";
-import { serviceCategories } from "../data/services.js";
+import { getActiveServiceCategories, getServiceCategoriesErrorMessage } from "../lib/serviceCategories.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const sortOptions = [
@@ -19,17 +19,11 @@ const deliveryOptions = [
   { value: "14", label: "Up to 14 days" },
 ];
 
-function isValidCategory(categoryId) {
-  return categoryId === "all" || serviceCategories.some((category) => category.id === categoryId);
-}
-
 export default function ExploreServices() {
   const { allServices } = useMarketplace();
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get("category") || "all";
-  const [selectedCategory, setSelectedCategory] = useState(
-    isValidCategory(categoryFromUrl) ? categoryFromUrl : "all",
-  );
+  const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [minPrice, setMinPrice] = useState("");
@@ -38,9 +32,40 @@ export default function ExploreServices() {
   const [sellerInput, setSellerInput] = useState("");
   const [sortOrder, setSortOrder] = useState("recommended");
 
+  // The customer-facing category chips come from the live active categories,
+  // read from the database through the shared categories data layer. RLS hides
+  // inactive rows from ordinary users and the data layer filters to active rows
+  // as well, so an inactive category is never offered to customers.
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState("");
+
   useEffect(() => {
-    setSelectedCategory(isValidCategory(categoryFromUrl) ? categoryFromUrl : "all");
-  }, [categoryFromUrl]);
+    let active = true;
+    setCategoriesLoading(true);
+    setCategoriesError("");
+
+    getActiveServiceCategories()
+      .then((data) => { if (active) { setCategories(data); setCategoriesError(""); } })
+      .catch((error) => { if (active) { setCategories([]); setCategoriesError(getServiceCategoriesErrorMessage(error)); } })
+      .finally(() => { if (active) setCategoriesLoading(false); });
+
+    return () => { active = false; };
+  }, []);
+
+  // Keep the URL-driven selection valid against the live category list. A
+  // category that no longer exists (or is inactive) falls back to "all", so a
+  // stale deep link never leaves customers stuck on an empty category.
+  useEffect(() => {
+    if (categoriesLoading) return;
+    const isKnown = categoryFromUrl === "all" || categories.some((category) => category.id === categoryFromUrl);
+    if (isKnown) {
+      setSelectedCategory(categoryFromUrl);
+      return;
+    }
+    setSelectedCategory("all");
+    if (categoryFromUrl !== "all") setSearchParams({}, { replace: true });
+  }, [categoryFromUrl, categories, categoriesLoading, setSearchParams]);
 
   const filteredServices = useMemo(() => {
     const min = minPrice === "" ? 0 : Number(minPrice);
@@ -126,7 +151,10 @@ export default function ExploreServices() {
               <button className={selectedCategory === "all" ? "filter-category active" : "filter-category"} type="button" aria-pressed={selectedCategory === "all"} onClick={() => chooseCategory("all")}>
                 <span>All categories</span><small>{allServices.length}</small>
               </button>
-              {serviceCategories.map((category) => {
+              {categoriesLoading && <p className="filter-category-note">Loading categories…</p>}
+              {!categoriesLoading && categoriesError && <p className="filter-category-note filter-category-note-error" role="alert">{categoriesError}</p>}
+              {!categoriesLoading && !categoriesError && categories.length === 0 && <p className="filter-category-note">No categories available yet.</p>}
+              {!categoriesLoading && !categoriesError && categories.map((category) => {
                 const count = allServices.filter((service) => service.categoryId === category.id).length;
                 return (
                   <button
@@ -167,7 +195,7 @@ export default function ExploreServices() {
 
         <section className="explore-results" aria-label="Website development services">
           <div className="explore-results-heading">
-            <div><h2>            {selectedCategory === "all" ? "Website development services" : serviceCategories.find((category) => category.id === selectedCategory)?.name}</h2><p>{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"}</p></div>
+            <div><h2>{selectedCategory === "all" ? "Website development services" : (categories.find((category) => category.id === selectedCategory)?.name || "Website development services")}</h2><p>{filteredServices.length} {filteredServices.length === 1 ? "service" : "services"}</p></div>
             <label className="sort-control"><span>Sort by</span><select aria-label="Sort services" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>{sortOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
           </div>
 

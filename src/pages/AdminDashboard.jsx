@@ -24,8 +24,6 @@ import {
   X,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { serviceCategories } from "../data/services.js";
-import { useMarketplace } from "../context/MarketplaceContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { isOwnerAccount } from "../lib/messages.js";
 import { getAdminOverview, getAdminOverviewErrorMessage } from "../lib/adminOverview.js";
@@ -60,6 +58,21 @@ import {
   getAdminReportsDirectory,
   getAdminReportsDirectoryErrorMessage,
 } from "../lib/adminReportsDirectory.js";
+import {
+  createServiceCategory,
+  deleteServiceCategory,
+  duplicateCategoryNameError,
+  filterServiceCategories,
+  getAdminServiceCategories,
+  getDeleteCategoryErrorMessage,
+  getSaveCategoryErrorMessage,
+  getServiceCategoriesErrorMessage,
+  maximumCategoryDescriptionLength,
+  maximumCategoryIconNameLength,
+  maximumCategoryNameLength,
+  reassignServiceCategory,
+  updateServiceCategory,
+} from "../lib/serviceCategories.js";
 import { formatReviewRating, formatReviewStatus } from "../lib/reviews.js";
 import {
   formatClientOrderDate,
@@ -83,6 +96,11 @@ const navigation = [
   { key: "activity", label: "Activity log", Icon: Activity },
 ];
 
+// Sections only the website owner may see. Hiding the link is defence-in-depth;
+// each of these sections also carries a server-verified RequireOwner gate so a
+// direct URL is blocked for approved admins and customers.
+const ownerOnlyKeys = ["messages", "settings"];
+
 // The only status filter the live catalog supports: the real is_active column.
 // Preview-only statuses (pending/published/rejected) are not database fields and
 // are not offered here.
@@ -100,6 +118,10 @@ const reviewStatusOptions = ["all", ...adminReviewStatuses];
 // reports.status column, whose allowed values are pending / reviewing / resolved
 // / rejected (pending and reviewing are the open states).
 const reportStatusOptions = ["all", ...adminReportStatuses];
+
+// The only status filter the live categories directory supports: the real
+// is_active column, whose values are active / inactive.
+const categoryStatusOptions = ["all", "active", "inactive"];
 
 function formatStatus(status) {
   return status === "published" ? "Published" : status.charAt(0).toUpperCase() + status.slice(1);
@@ -129,7 +151,6 @@ function AdminPageHeading({ eyebrow, title, children }) {
 
 function AdminDashboard() {
   const { pathname } = useLocation();
-  const { allServices } = useMarketplace();
   const { user, loading: authLoading } = useAuth();
   const activeSection = pathname.split("/")[2] || "overview";
   const activeItem = navigation.find((item) => item.key === activeSection) || navigation[0];
@@ -140,12 +161,17 @@ function AdminDashboard() {
   const [serviceStatusFilter, setServiceStatusFilter] = useState("all");
   const [profileOpen, setProfileOpen] = useState(false);
   const [notice, setNotice] = useState("");
-  const [categories, setCategories] = useState(() => serviceCategories.map((item) => ({
-    ...item,
-    description: "",
-    icon: "",
-  })));
-  const [categoryForm, setCategoryForm] = useState({ id: "", name: "", description: "", icon: "" });
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState("");
+  const [categoriesRefreshKey, setCategoriesRefreshKey] = useState(0);
+  const [categoryStatusFilter, setCategoryStatusFilter] = useState("all");
+  const [categoryForm, setCategoryForm] = useState({ id: "", name: "", description: "", iconName: "", active: true });
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryFormError, setCategoryFormError] = useState("");
+  const [categoryBusyId, setCategoryBusyId] = useState("");
+  const [reassignSource, setReassignSource] = useState(null);
+  const [reassignTargetId, setReassignTargetId] = useState("");
   const [settings, setSettings] = useState({
     name: "NexTech",
     description: "",
@@ -349,9 +375,37 @@ function AdminDashboard() {
     return () => { active = false; };
   }, [activeSection, user, authLoading, reportsRefreshKey]);
 
-  // The Messages link is owner-only and fails closed: it stays hidden for
-  // guests, for customers, and while the server-side owner check is pending or
-  // unavailable. The inbox itself keeps its RequireOwner gate.
+  // The Categories section is a live, editable directory. Authenticated users can
+  // read active categories; inactive rows and every write stay behind
+  // has_admin_access()-gated RPCs. The browser never sends a role or a new row id.
+  useEffect(() => {
+    if (activeSection !== "categories") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setCategories([]);
+      setCategoriesError("");
+      setCategoriesLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setCategoriesLoading(true);
+    setCategoriesError("");
+
+    getAdminServiceCategories()
+      .then((data) => { if (active) { setCategories(data); setCategoriesError(""); } })
+      .catch((error) => { if (active) { setCategories([]); setCategoriesError(getServiceCategoriesErrorMessage(error)); } })
+      .finally(() => { if (active) setCategoriesLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, categoriesRefreshKey]);
+
+  // The Messages and Platform Configuration links are owner-only and fail closed:
+  // they stay hidden for guests, for customers, for approved admins and while the
+  // server-side owner check is pending or unavailable. Hiding the link is only a
+  // convenience — the inbox and the settings form keep their RequireOwner gate, so
+  // a direct /admin/settings or /admin/messages URL is blocked too.
   useEffect(() => {
     if (authLoading) return undefined;
     if (!user) {
@@ -368,7 +422,7 @@ function AdminDashboard() {
   }, [user, authLoading]);
 
   const visibleNavigation = useMemo(
-    () => navigation.filter((item) => item.key !== "messages" || isOwner),
+    () => navigation.filter((item) => !ownerOnlyKeys.includes(item.key) || isOwner),
     [isOwner],
   );
 
@@ -397,15 +451,22 @@ function AdminDashboard() {
     [reports, search, reportStatusFilter],
   );
 
-  // Overview, Users, Services, Orders, Reviews and Reports are backed by live
-  // server data; the remaining sections are still browser previews.
+  const filteredCategoriesList = useMemo(
+    () => filterServiceCategories(categories, { query: search, status: categoryStatusFilter }),
+    [categories, search, categoryStatusFilter],
+  );
+
+  // Overview, Users, Services, Orders, Reviews, Reports and Categories are backed
+  // by live server data (Categories is also editable); the remaining sections are
+  // still browser previews.
   const isPreviewSection = !isMessagesSection
     && activeSection !== "overview"
     && activeSection !== "users"
     && activeSection !== "services"
     && activeSection !== "orders"
     && activeSection !== "reviews"
-    && activeSection !== "reports";
+    && activeSection !== "reports"
+    && activeSection !== "categories";
 
   const overviewStats = [
     { key: "customers", label: "Total customers", Icon: UserRound, hint: "Customer profiles on file", value: overview?.totalCustomers },
@@ -422,48 +483,113 @@ function AdminDashboard() {
     }, ...current]);
   };
 
-  const saveCategory = (event) => {
+  const resetCategoryForm = () => {
+    setCategoryForm({ id: "", name: "", description: "", iconName: "", active: true });
+    setCategoryFormError("");
+  };
+
+  const saveCategory = async (event) => {
     event.preventDefault();
-    const name = categoryForm.name.trim();
-    if (!name) return;
-    if (categoryForm.id) {
-      setCategories((current) => current.map((category) => category.id === categoryForm.id
-        ? { ...category, name, description: categoryForm.description.trim(), icon: categoryForm.icon.trim() }
-        : category));
-      logAction(`Edited category “${name}”`);
-    } else {
-      const id = `preview-${Date.now().toString(36)}`;
-      setCategories((current) => [...current, {
-        id,
-        name,
-        description: categoryForm.description.trim(),
-        icon: categoryForm.icon.trim(),
-      }]);
-      logAction(`Added category “${name}”`);
+    if (categorySaving) return;
+    const duplicateError = duplicateCategoryNameError(categories, {
+      name: categoryForm.name,
+      id: categoryForm.id,
+    });
+    if (duplicateError) {
+      setCategoryFormError(duplicateError);
+      return;
     }
-    setCategoryForm({ id: "", name: "", description: "", icon: "" });
-    setNotice("Category updated in this browser preview only; it is not saved to a server.");
+
+    setCategoryFormError("");
+    setCategorySaving(true);
+
+    try {
+      if (categoryForm.id) {
+        const updated = await updateServiceCategory({
+          id: categoryForm.id,
+          name: categoryForm.name,
+          description: categoryForm.description,
+          iconName: categoryForm.iconName,
+          active: categoryForm.active,
+        });
+        setNotice(`Category “${updated?.name || categoryForm.name}” updated on the server.`);
+      } else {
+        const created = await createServiceCategory({
+          name: categoryForm.name,
+          description: categoryForm.description,
+          iconName: categoryForm.iconName,
+        });
+        setNotice(`Category “${created?.name || categoryForm.name}” added on the server.`);
+      }
+      resetCategoryForm();
+      setCategoriesRefreshKey((current) => current + 1);
+    } catch (error) {
+      setCategoryFormError(getSaveCategoryErrorMessage(error));
+    } finally {
+      setCategorySaving(false);
+    }
   };
 
   const editCategory = (category) => {
+    setCategoryFormError("");
+    setReassignSource(null);
     setCategoryForm({
       id: category.id,
       name: category.name,
       description: category.description,
-      icon: category.icon,
+      iconName: category.iconName,
+      active: category.active !== false,
     });
   };
 
+  const performDeleteCategory = async (category) => {
+    if (!window.confirm(`Delete the category “${category.name}”? This cannot be undone.`)) return;
+
+    setCategoryBusyId(category.id);
+    setCategoryFormError("");
+    try {
+      await deleteServiceCategory(category.id);
+      if (categoryForm.id === category.id) resetCategoryForm();
+      setNotice(`Category “${category.name}” deleted on the server.`);
+      setCategoriesRefreshKey((current) => current + 1);
+    } catch (error) {
+      setCategoryFormError(getDeleteCategoryErrorMessage(error));
+    } finally {
+      setCategoryBusyId("");
+    }
+  };
+
+  // A category that still has services cannot be deleted (the RPC refuses and the
+  // ON DELETE RESTRICT foreign key backs it up), so the admin is offered a
+  // reassignment step: move the services, then delete.
   const deleteCategory = (category) => {
-    const inUse = allServices.some((service) => service.categoryId === category.id);
-    if (inUse) {
-      setNotice(`“${category.name}” is in use by a service and cannot be deleted.`);
+    setCategoryFormError("");
+    if (category.serviceCount > 0) {
+      setReassignSource(category);
+      setReassignTargetId("");
       return;
     }
-    if (!window.confirm(`Delete “${category.name}” from this browser preview?`)) return;
-    setCategories((current) => current.filter((item) => item.id !== category.id));
-    logAction(`Deleted category “${category.name}”`);
-    setNotice("Category deleted in this browser preview only; it is not saved to a server.");
+    performDeleteCategory(category);
+  };
+
+  const reassignAndDelete = async () => {
+    if (!reassignSource || !reassignTargetId) return;
+
+    setCategoryBusyId(reassignSource.id);
+    setCategoryFormError("");
+    try {
+      const moved = await reassignServiceCategory({ fromId: reassignSource.id, toId: reassignTargetId });
+      await deleteServiceCategory(reassignSource.id);
+      if (categoryForm.id === reassignSource.id) resetCategoryForm();
+      setNotice(`Moved ${moved} service${moved === 1 ? "" : "s"} and deleted “${reassignSource.name}”.`);
+      setReassignSource(null);
+      setReassignTargetId("");
+      setCategoriesRefreshKey((current) => current + 1);
+    } catch (error) {
+      setCategoryFormError(getDeleteCategoryErrorMessage(error));
+    } finally {
+      setCategoryBusyId("");
+    }
   };
 
   const saveSettings = (event) => {
@@ -563,7 +689,9 @@ function AdminDashboard() {
                           ? "Live customer reviews read from the server for the owner and approved admins. Reviewer and moderator identities are never shown, and this view is read-only."
                           : activeSection === "reports"
                             ? "Live customer reports read from the server for the owner and approved admins. Reporter identity and personal information are never shown, and this view is read-only."
-                            : "Manage your marketplace preview and review platform activity."}</p>
+                            : activeSection === "categories"
+                              ? "Live service categories stored on the server for the owner and approved admins. Changes here appear in the customer-facing service editor."
+                              : "Manage your marketplace preview and review platform activity."}</p>
             </div>
             {isPreviewSection && <div className="admin-status-chip"><span /> Demo mode</div>}
           </div>
@@ -704,7 +832,7 @@ function AdminDashboard() {
           {activeSection === "services" && (
             <section className="admin-panel">
               <AdminPageHeading eyebrow="SERVICE CATALOG" title="Services">
-                Live services, read from the server for the owner and approved admins. Services have no seller or category column in the database, so only the real catalog fields are shown. This view is read-only.
+                Live services, read from the server for the owner and approved admins. This directory stays read-only and shows the catalog fields the services directory returns.
               </AdminPageHeading>
 
               <div className="admin-filter-row" role="group" aria-label="Filter services by status">
@@ -983,42 +1111,136 @@ function AdminDashboard() {
           {activeSection === "categories" && (
             <section className="admin-panel">
               <AdminPageHeading eyebrow="MARKETPLACE TAXONOMY" title="Categories">
-                Categories below are the existing marketplace options. Changes in this preview are temporary and do not update the service editor or server.
+                Live service categories stored on the server. Adding, editing and deleting here updates the customer-facing service editor. Inactive categories stay hidden from customers but remain visible here.
               </AdminPageHeading>
+
               <form className="admin-form" onSubmit={saveCategory}>
-                <label>Category name<input required value={categoryForm.name} onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                <label>Description<input value={categoryForm.description} onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))} /></label>
-                <label>Icon name<input value={categoryForm.icon} onChange={(event) => setCategoryForm((current) => ({ ...current, icon: event.target.value }))} placeholder="Optional" /></label>
-                <div className="admin-form-actions"><button className="admin-primary-button" type="submit">{categoryForm.id ? "Update category" : "Add category"}</button>{categoryForm.id && <button className="admin-secondary-button" type="button" onClick={() => setCategoryForm({ id: "", name: "", description: "", icon: "" })}>Cancel edit</button>}</div>
+                <label>Category name<input required maxLength={maximumCategoryNameLength} value={categoryForm.name} onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))} /></label>
+                <label>Description<input maxLength={maximumCategoryDescriptionLength} value={categoryForm.description} onChange={(event) => setCategoryForm((current) => ({ ...current, description: event.target.value }))} placeholder="Optional" /></label>
+                <label>Icon name<input maxLength={maximumCategoryIconNameLength} value={categoryForm.iconName} onChange={(event) => setCategoryForm((current) => ({ ...current, iconName: event.target.value }))} placeholder="Optional, e.g. store" /></label>
+                {categoryForm.id && (
+                  <label className="admin-checkbox-field">
+                    <input type="checkbox" checked={categoryForm.active} onChange={(event) => setCategoryForm((current) => ({ ...current, active: event.target.checked }))} />
+                    <span>Visible to customers (active)</span>
+                  </label>
+                )}
+                <div className="admin-form-actions">
+                  <button className="admin-primary-button" type="submit" disabled={categorySaving}>
+                    {categorySaving ? "Saving…" : categoryForm.id ? "Update category" : "Add category"}
+                  </button>
+                  {categoryForm.id && <button className="admin-secondary-button" type="button" onClick={resetCategoryForm}>Cancel edit</button>}
+                </div>
+                {categoryFormError && <span className="seller-field-error" role="alert">{categoryFormError}</span>}
               </form>
-              {categories.filter((category) => !search.trim() || category.name.toLowerCase().includes(search.trim().toLowerCase())).length ? (
+
+              <div className="admin-filter-row" role="group" aria-label="Filter categories by status">
+                {categoryStatusOptions.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={categoryStatusFilter === status ? "active" : ""}
+                    onClick={() => setCategoryStatusFilter(status)}
+                  >
+                    {status === "all" ? "All" : formatStatus(status)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-filter-row" role="group" aria-label="Categories directory actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setCategoriesRefreshKey((current) => current + 1)}
+                  disabled={categoriesLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {categoriesLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {reassignSource && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <div>
+                    <p>
+                      <strong>“{reassignSource.name}” still has {reassignSource.serviceCount} service{reassignSource.serviceCount === 1 ? "" : "s"}.</strong> Choose another category to move them to, then the category will be deleted.
+                    </p>
+                    <div className="admin-form-actions">
+                      <select value={reassignTargetId} onChange={(event) => setReassignTargetId(event.target.value)} aria-label="Destination category">
+                        <option value="">Choose a destination category</option>
+                        {categories.filter((category) => category.id !== reassignSource.id).map((category) => (
+                          <option value={category.id} key={category.id}>{category.active ? category.name : `${category.name} (inactive)`}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="admin-primary-button"
+                        onClick={reassignAndDelete}
+                        disabled={!reassignTargetId || categoryBusyId === reassignSource.id}
+                      >
+                        {categoryBusyId === reassignSource.id ? "Moving…" : "Move services & delete"}
+                      </button>
+                      <button type="button" className="admin-secondary-button" onClick={() => { setReassignSource(null); setReassignTargetId(""); }}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {categoriesLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the categories directory from the server…
+                </div>
+              )}
+
+              {!categoriesLoading && categoriesError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Categories directory unavailable.</strong> {categoriesError}</p>
+                </div>
+              )}
+
+              {!categoriesLoading && !categoriesError && (filteredCategoriesList.length ? (
                 <div className="admin-category-list">
-                  {categories.filter((category) => !search.trim() || category.name.toLowerCase().includes(search.trim().toLowerCase())).map((category) => (
+                  {filteredCategoriesList.map((category) => (
                     <article className="admin-category-row" key={category.id}>
                       <span className="admin-category-icon"><FolderKanban size={16} /></span>
-                      <div><strong>{category.name}</strong><small>{category.description || "No description"}{category.icon ? ` · ${category.icon}` : ""}</small></div>
+                      <div>
+                        <strong>{category.name}</strong>
+                        <small>{category.description || "No description"}{category.iconName ? ` · ${category.iconName}` : ""}</small>
+                        <small>{[category.active ? "Active" : "Inactive", `${category.serviceCount} service${category.serviceCount === 1 ? "" : "s"}`].join(" · ")}</small>
+                      </div>
                       <button type="button" onClick={() => editCategory(category)}>Edit</button>
-                      <button type="button" className="danger" onClick={() => deleteCategory(category)} aria-label={`Delete ${category.name}`}><Trash2 size={14} /></button>
+                      <button type="button" className="danger" onClick={() => deleteCategory(category)} disabled={categoryBusyId === category.id} aria-label={`Delete ${category.name}`}><Trash2 size={14} /></button>
                     </article>
                   ))}
                 </div>
-              ) : <EmptyState title="No matching categories">Try another search.</EmptyState>}
+              ) : categories.length ? (
+                <EmptyState title="No matching categories">No category matches this search or status filter. Try a different term or filter.</EmptyState>
+              ) : (
+                <EmptyState title="No categories yet">Add the first service category using the form above.</EmptyState>
+              ))}
             </section>
           )}
 
           {activeSection === "settings" && (
-            <section className="admin-panel">
-              <AdminPageHeading eyebrow="PLATFORM CONFIGURATION" title="Platform settings">
-                Values in this form are a local preview only. Saving does not update the public website or persist after refresh.
-              </AdminPageHeading>
-              <form className="admin-form admin-settings-form" onSubmit={saveSettings}>
-                <label>Website name<input value={settings.name} onChange={(event) => setSettings((current) => ({ ...current, name: event.target.value }))} /></label>
-                <label>Website description<textarea rows="3" value={settings.description} onChange={(event) => setSettings((current) => ({ ...current, description: event.target.value }))} placeholder="Not connected to the public website" /></label>
-                <label>Contact email<input type="email" value={settings.contactEmail} onChange={(event) => setSettings((current) => ({ ...current, contactEmail: event.target.value }))} /></label>
-                <label>Support email<input type="email" value={settings.supportEmail} onChange={(event) => setSettings((current) => ({ ...current, supportEmail: event.target.value }))} /></label>
-                <div className="admin-form-actions"><button className="admin-primary-button" type="submit">Save preview settings</button></div>
-              </form>
-            </section>
+            <RequireOwner
+              signInMessage={<>Platform Configuration is limited to the NexTech owner. Sign in with the owner account to continue.</>}
+              errorNote="Owner access could not be confirmed, so Platform Configuration stays closed."
+              deniedMessage={<>This account is not the NexTech owner, so Platform Configuration is not available.</>}
+            >
+              <section className="admin-panel">
+                <AdminPageHeading eyebrow="PLATFORM CONFIGURATION" title="Platform settings">
+                  Values in this form are a local preview only. Saving does not update the public website or persist after refresh.
+                </AdminPageHeading>
+                <form className="admin-form admin-settings-form" onSubmit={saveSettings}>
+                  <label>Website name<input value={settings.name} onChange={(event) => setSettings((current) => ({ ...current, name: event.target.value }))} /></label>
+                  <label>Website description<textarea rows="3" value={settings.description} onChange={(event) => setSettings((current) => ({ ...current, description: event.target.value }))} placeholder="Not connected to the public website" /></label>
+                  <label>Contact email<input type="email" value={settings.contactEmail} onChange={(event) => setSettings((current) => ({ ...current, contactEmail: event.target.value }))} /></label>
+                  <label>Support email<input type="email" value={settings.supportEmail} onChange={(event) => setSettings((current) => ({ ...current, supportEmail: event.target.value }))} /></label>
+                  <div className="admin-form-actions"><button className="admin-primary-button" type="submit">Save preview settings</button></div>
+                </form>
+              </section>
+            </RequireOwner>
           )}
 
           {activeSection === "activity" && (
@@ -1026,7 +1248,7 @@ function AdminDashboard() {
               <AdminPageHeading eyebrow="ADMIN ACTION HISTORY" title="Activity log">
                 Actions are held in browser memory and disappear when this page is refreshed.
               </AdminPageHeading>
-              {activity.length ? <div className="admin-activity-list">{activity.map((item) => <div className="admin-activity-row" key={item.id}><span><Activity size={15} /></span><div><strong>{item.description}</strong><small>{item.time} · Browser preview</small></div></div>)}</div> : <EmptyState title="No recorded actions">Service and category preview changes will be listed here during this session.</EmptyState>}
+              {activity.length ? <div className="admin-activity-list">{activity.map((item) => <div className="admin-activity-row" key={item.id}><span><Activity size={15} /></span><div><strong>{item.description}</strong><small>{item.time} · Browser preview</small></div></div>)}</div> : <EmptyState title="No recorded actions">Settings changes made in this session will be listed here.</EmptyState>}
             </section>
           )}
         </section>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { serviceCategories, servicePackages } from "../data/services.js";
+import { servicePackages } from "../data/services.js";
+import { getActiveServiceCategories, getServiceCategoriesErrorMessage } from "../lib/serviceCategories.js";
 import { useMarketplace } from "../context/MarketplaceContext.jsx";
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -137,6 +138,26 @@ export default function ServiceEditor() {
   const [imageError, setImageError] = useState("");
   const sellerAvatar = profilePictureUrl || sellerProfile?.avatar || "";
 
+  // The live category list for customers: active categories only, read from the
+  // database. RLS already hides inactive rows from ordinary users; a change made
+  // in the admin dashboard shows up here after a refresh.
+  const [liveCategories, setLiveCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setCategoriesLoading(true);
+    setCategoriesError("");
+
+    getActiveServiceCategories()
+      .then((data) => { if (active) { setLiveCategories(data); setCategoriesError(""); } })
+      .catch((error) => { if (active) { setLiveCategories([]); setCategoriesError(getServiceCategoriesErrorMessage(error)); } })
+      .finally(() => { if (active) setCategoriesLoading(false); });
+
+    return () => { active = false; };
+  }, []);
+
   if (!sellerProfile) return <Navigate to="/seller/register" replace />;
   if (editing && !existingService) {
     return (
@@ -256,7 +277,13 @@ export default function ServiceEditor() {
     form.requirements.length + form.customRequirements.length > 0,
   ].filter(Boolean).length;
   const progress = Math.round((completeSections / 4) * 100);
-  const selectedCategory = serviceCategories.find((category) => category.id === form.categoryId);
+  // The options shown to the seller: the live active categories, plus the
+  // service's current category if it is no longer active, so editing an existing
+  // service never silently drops its assignment.
+  const categoryOptions = form.categoryId && !liveCategories.some((category) => category.id === form.categoryId)
+    ? [{ id: form.categoryId, name: existingService?.category || form.categoryId }, ...liveCategories]
+    : liveCategories;
+  const selectedCategory = categoryOptions.find((category) => category.id === form.categoryId);
   const currentImage = images[mainImageIndex] || images[0];
 
   const validate = (action) => {
@@ -417,10 +444,11 @@ export default function ServiceEditor() {
               </div>
               <div className="seller-field">
                 <label htmlFor="service-categoryId">Category <span>*</span></label>
-                <select id="service-categoryId" name="categoryId" value={form.categoryId} onChange={updateForm} aria-invalid={Boolean(errors.categoryId)} aria-describedby={errors.categoryId ? "service-categoryId-error" : undefined}>
-                  <option value="">Choose a category</option>
-                  {serviceCategories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
+                <select id="service-categoryId" name="categoryId" value={form.categoryId} onChange={updateForm} disabled={categoriesLoading} aria-invalid={Boolean(errors.categoryId)} aria-describedby={errors.categoryId ? "service-categoryId-error" : undefined}>
+                  <option value="">{categoriesLoading ? "Loading categories…" : "Choose a category"}</option>
+                  {categoryOptions.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}
                 </select>
+                {categoriesError && <span className="seller-field-error" role="alert">{categoriesError}</span>}
                 <ServiceFieldError id="service-categoryId-error">{errors.categoryId}</ServiceFieldError>
               </div>
               <div className="seller-field">

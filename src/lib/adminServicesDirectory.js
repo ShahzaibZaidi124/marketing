@@ -27,8 +27,7 @@ export function getAdminServicesDirectoryErrorMessage(error) {
 // "undefined", and so any unexpected extra field is dropped rather than passed
 // through to the UI.
 //
-// NOTE: public.services has no seller/provider column and no category column, so
-// neither is read, returned or displayed — they are never invented.
+// The directory RPC does not return a seller or a category, so neither is invented.
 export function normalizeAdminServices(payload) {
   if (!Array.isArray(payload)) return [];
 

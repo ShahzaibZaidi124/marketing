@@ -145,17 +145,6 @@ export const serviceListings = [
   },
 ];
 
-export const serviceCategories = [
-  { id: "business-websites", name: "Business Websites" },
-  { id: "ecommerce-websites", name: "E-commerce Websites" },
-  { id: "portfolio-websites", name: "Portfolio Websites" },
-  { id: "restaurant-websites", name: "Restaurant Websites" },
-  { id: "landing-pages", name: "Landing Pages" },
-  { id: "wordpress-development", name: "WordPress Development" },
-  { id: "blog-websites", name: "Blog Websites" },
-  { id: "custom-react-websites", name: "Custom React Websites" },
-];
-
 export const servicePackages = [
   {
     id: "basic",

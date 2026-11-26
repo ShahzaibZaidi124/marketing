@@ -49,10 +49,17 @@ export function RequireAuth({ children }) {
   return children;
 }
 
-// Owner gate for the admin inbox. public.is_owner() is the existing server-side
-// check; it fails closed here and the Edge Functions re-check ownership on every
-// write, so a forged front-end flag never grants access to real conversations.
-export function RequireOwner({ children }) {
+// Owner gate for owner-only areas (the admin inbox, Platform Configuration).
+// public.is_owner() is the existing server-side check — SECURITY DEFINER, owned
+// by postgres, reading only public.owner_accounts — and it fails closed here, so
+// a forged front-end flag never grants access. The copy defaults to the owner
+// inbox wording and a caller can override it for another owner-only area.
+export function RequireOwner({
+  children,
+  signInMessage = <>This inbox is limited to the NexTech owner. Sign in with the owner account to continue.</>,
+  errorNote = "Owner access could not be confirmed, so the inbox stays closed.",
+  deniedMessage = <>This account is not the NexTech owner, so the customer inbox is not available. Customer messaging stays at <Link className="route-guard-link" to="/messages">Messages</Link>.</>,
+}) {
   const { user, loading } = useAuth();
   const [status, setStatus] = useState("checking");
   const [errorMessage, setErrorMessage] = useState("");
@@ -92,7 +99,7 @@ export function RequireOwner({ children }) {
   if (!user || status === "signed-out") {
     return (
       <GuardState icon={LogIn} title="Owner sign-in required">
-        <p>This inbox is limited to the NexTech owner. Sign in with the owner account to continue.</p>
+        <p>{signInMessage}</p>
         <GoogleOAuthButton />
       </GuardState>
     );
@@ -101,7 +108,7 @@ export function RequireOwner({ children }) {
   if (status === "error") {
     return (
       <GuardState icon={ShieldAlert} title="Owner check unavailable" tone="is-error">
-        <p>{errorMessage} Owner access could not be confirmed, so the inbox stays closed.</p>
+        <p>{errorMessage} {errorNote}</p>
         <button className="route-guard-button" type="button" onClick={retry}><RefreshCw size={14} aria-hidden="true" /> Try again</button>
       </GuardState>
     );
@@ -110,7 +117,7 @@ export function RequireOwner({ children }) {
   if (status === "denied") {
     return (
       <GuardState icon={ShieldAlert} title="Owner access required" tone="is-denied">
-        <p>This account is not the NexTech owner, so the customer inbox is not available. Customer messaging stays at <Link className="route-guard-link" to="/messages">Messages</Link>.</p>
+        <p>{deniedMessage}</p>
       </GuardState>
     );
   }

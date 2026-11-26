@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { formatPrice, templates } from "../data/templates.js";
 
@@ -45,7 +45,7 @@ export default function Order() {
       <Link to={`/templates/${template.id}`} className="back-link"><ArrowLeft size={14} /> Back to {template.name}</Link>
       <div className="order-layout">
         <div className="order-form-side">
-          <span className="eyebrow"><Sparkles size={13} /> ONE GOOD IDEA, COMING UP</span>
+          <span className="eyebrow">ONE GOOD IDEA, COMING UP</span>
           <h1>Let’s make it<br /><span className="gradient-text">yours.</span></h1>
           <p>Preview an enquiry about this template. This demo has no enquiry or payment service.</p>
           <div className="service-order-demo-notice" role="note">
@@ -73,7 +73,7 @@ export default function Order() {
           <div className="summary-title"><span>{template.name}</span><span>{formatPrice(template.price)}</span></div>
           <p>Sample price <span>·</span> No payment collected</p>
           <div className="summary-includes">{template.features.slice(0, 3).map((feature) => <span key={feature}><CheckCircle2 size={13} /> {feature}</span>)}</div>
-          <div className="summary-foot"><Sparkles size={13} /> A thoughtful start to something good.</div>
+          <div className="summary-foot">A thoughtful start to something good.</div>
         </aside>
       </div>
     </main>

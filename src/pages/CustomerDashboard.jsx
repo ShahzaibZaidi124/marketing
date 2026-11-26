@@ -16,7 +16,6 @@ import {
   Search,
   Settings,
   ShoppingBag,
-  Sparkles,
   Star,
   Trash2,
   UserRound,
@@ -985,7 +984,6 @@ export default function CustomerDashboard() {
             </div>
           )}
         </div>
-        <div className="dashboard-welcome-mark" aria-hidden="true"><Sparkles size={25} /></div>
       </section>
 
       <section className="dashboard-stat-grid" aria-label="Order summary">

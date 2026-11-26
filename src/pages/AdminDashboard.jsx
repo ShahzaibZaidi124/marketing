@@ -73,6 +73,25 @@ import {
   reassignServiceCategory,
   updateServiceCategory,
 } from "../lib/serviceCategories.js";
+import {
+  getPlatformSettings,
+  getPlatformSettingsErrorMessage,
+  getSavePlatformSettingsErrorMessage,
+  maximumEmailLength,
+  maximumWebsiteDescriptionLength,
+  maximumWebsiteNameLength,
+  updatePlatformSettings,
+  validatePlatformSettingsDraft,
+} from "../lib/platformSettings.js";
+import {
+  adminActivityActions,
+  adminActivityPageSize,
+  formatActivityAction,
+  formatActivityActorRole,
+  formatActivityTime,
+  getAdminActivityLog,
+  getAdminActivityLogErrorMessage,
+} from "../lib/adminActivityLog.js";
 import { formatReviewRating, formatReviewStatus } from "../lib/reviews.js";
 import {
   formatClientOrderDate,
@@ -173,12 +192,22 @@ function AdminDashboard() {
   const [reassignSource, setReassignSource] = useState(null);
   const [reassignTargetId, setReassignTargetId] = useState("");
   const [settings, setSettings] = useState({
-    name: "NexTech",
-    description: "",
+    websiteName: "",
+    websiteDescription: "",
     contactEmail: "",
     supportEmail: "",
   });
-  const [activity, setActivity] = useState([]);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsLoadError, setSettingsLoadError] = useState("");
+  const [settingsFormError, setSettingsFormError] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [activityEntries, setActivityEntries] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState("");
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [activityActionFilter, setActivityActionFilter] = useState("all");
+  const [activityActorRoleFilter, setActivityActorRoleFilter] = useState("all");
+  const [activityLimit, setActivityLimit] = useState(adminActivityPageSize);
   const [overview, setOverview] = useState(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState("");
@@ -375,6 +404,39 @@ function AdminDashboard() {
     return () => { active = false; };
   }, [activeSection, user, authLoading, reportsRefreshKey]);
 
+  // The Activity Log is a live, server-persisted record. Entries are written by the
+  // SECURITY DEFINER action functions (never from the browser), so the read comes
+  // from the read-only admin_activity_log() RPC, which authorizes the caller with
+  // has_admin_access() and returns only the action, actor role, summary and time —
+  // never an actor id, name or email, and never a settings value.
+  useEffect(() => {
+    if (activeSection !== "activity") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user) {
+      setActivityEntries([]);
+      setActivityError("");
+      setActivityLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setActivityLoading(true);
+    setActivityError("");
+
+    getAdminActivityLog({
+      limit: activityLimit,
+      offset: 0,
+      action: activityActionFilter === "all" ? "" : activityActionFilter,
+      actorRole: activityActorRoleFilter === "all" ? "" : activityActorRoleFilter,
+    })
+      .then((data) => { if (active) { setActivityEntries(data); setActivityError(""); } })
+      .catch((error) => { if (active) { setActivityEntries([]); setActivityError(getAdminActivityLogErrorMessage(error)); } })
+      .finally(() => { if (active) setActivityLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, activityRefreshKey, activityActionFilter, activityActorRoleFilter, activityLimit]);
+
   // The Categories section is a live, editable directory. Authenticated users can
   // read active categories; inactive rows and every write stay behind
   // has_admin_access()-gated RPCs. The browser never sends a role or a new row id.
@@ -400,6 +462,35 @@ function AdminDashboard() {
 
     return () => { active = false; };
   }, [activeSection, user, authLoading, categoriesRefreshKey]);
+
+  // Platform settings are a live, owner-only record. The read RPC is gated on the
+  // server by public.is_owner(), so the load is skipped until this dashboard has
+  // confirmed the viewer is the owner — an approved admin never triggers a
+  // denied call, and the RequireOwner wrapper blocks the section for everyone
+  // else. Values are loaded whenever the section opens, so a refresh restores them.
+  useEffect(() => {
+    if (activeSection !== "settings") return undefined;
+    if (authLoading) return undefined;
+
+    if (!user || !isOwner) {
+      setSettingsLoading(false);
+      setSettingsLoadError("");
+      setSettingsFormError("");
+      return undefined;
+    }
+
+    let active = true;
+    setSettingsLoading(true);
+    setSettingsLoadError("");
+    setSettingsFormError("");
+
+    getPlatformSettings()
+      .then((data) => { if (active) { setSettings(data); setSettingsLoadError(""); } })
+      .catch((error) => { if (active) setSettingsLoadError(getPlatformSettingsErrorMessage(error)); })
+      .finally(() => { if (active) setSettingsLoading(false); });
+
+    return () => { active = false; };
+  }, [activeSection, user, authLoading, isOwner]);
 
   // The Messages and Platform Configuration links are owner-only and fail closed:
   // they stay hidden for guests, for customers, for approved admins and while the
@@ -456,9 +547,10 @@ function AdminDashboard() {
     [categories, search, categoryStatusFilter],
   );
 
-  // Overview, Users, Services, Orders, Reviews, Reports and Categories are backed
-  // by live server data (Categories is also editable); the remaining sections are
-  // still browser previews.
+  // Overview, Users, Services, Orders, Reviews, Reports, Categories and Activity
+  // log are backed by live server data (Categories is also editable), and Platform
+  // settings is a live owner-only record; the remaining sections are still browser
+  // previews.
   const isPreviewSection = !isMessagesSection
     && activeSection !== "overview"
     && activeSection !== "users"
@@ -466,7 +558,9 @@ function AdminDashboard() {
     && activeSection !== "orders"
     && activeSection !== "reviews"
     && activeSection !== "reports"
-    && activeSection !== "categories";
+    && activeSection !== "categories"
+    && activeSection !== "settings"
+    && activeSection !== "activity";
 
   const overviewStats = [
     { key: "customers", label: "Total customers", Icon: UserRound, hint: "Customer profiles on file", value: overview?.totalCustomers },
@@ -474,14 +568,6 @@ function AdminDashboard() {
     { key: "pending", label: "Pending orders", Icon: ClipboardList, hint: "Orders awaiting action", value: overview?.pendingOrders },
     { key: "orders", label: "Total orders", Icon: ShoppingBag, hint: "All customer orders", value: overview?.totalOrders },
   ];
-
-  const logAction = (description) => {
-    setActivity((current) => [{
-      id: `${Date.now()}-${Math.random()}`,
-      description,
-      time: new Date().toLocaleString(),
-    }, ...current]);
-  };
 
   const resetCategoryForm = () => {
     setCategoryForm({ id: "", name: "", description: "", iconName: "", active: true });
@@ -592,10 +678,31 @@ function AdminDashboard() {
     }
   };
 
-  const saveSettings = (event) => {
+  // The owner-only save. Values are validated on the client for a fast, friendly
+  // message and again on the server inside the RPC. Success and failure are both
+  // surfaced; the saved row is echoed back from the server.
+  const saveSettings = async (event) => {
     event.preventDefault();
-    setNotice("Settings updated in this browser preview only; they are not saved to a server.");
-    logAction("Updated platform settings in preview");
+    if (settingsSaving) return;
+
+    const { values, error: validationError } = validatePlatformSettingsDraft(settings);
+    if (validationError) {
+      setSettingsFormError(validationError);
+      return;
+    }
+
+    setSettingsFormError("");
+    setSettingsSaving(true);
+
+    try {
+      const saved = await updatePlatformSettings(values);
+      setSettings(saved);
+      setNotice("Platform settings saved. The public website now shows these values.");
+    } catch (error) {
+      setSettingsFormError(getSavePlatformSettingsErrorMessage(error));
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const unavailableSections = {
@@ -691,7 +798,11 @@ function AdminDashboard() {
                             ? "Live customer reports read from the server for the owner and approved admins. Reporter identity and personal information are never shown, and this view is read-only."
                             : activeSection === "categories"
                               ? "Live service categories stored on the server for the owner and approved admins. Changes here appear in the customer-facing service editor."
-                              : "Manage your marketplace preview and review platform activity."}</p>
+                              : activeSection === "settings"
+                                ? "These values are stored on the server and shown on the public website. Only the verified owner can read or change them."
+                                : activeSection === "activity"
+                                  ? "Records of administrative actions, written on the server as each action happens and read here for the owner and approved admins. Only the action, the actor's role and the time are shown."
+                                  : "Manage your marketplace preview and review platform activity."}</p>
             </div>
             {isPreviewSection && <div className="admin-status-chip"><span /> Demo mode</div>}
           </div>
@@ -749,7 +860,7 @@ function AdminDashboard() {
                 ) : overview?.recentOrders?.length ? (
                   <div className="admin-activity-list">
                     {overview.recentOrders.map((order, index) => (
-                      <div className="admin-activity-row" key={`${order.createdAt}-${index}`}>
+                      <div className="admin-activity-row admin-order-card" key={`${order.createdAt}-${index}`}>
                         <span><ShoppingBag size={15} /></span>
                         <div>
                           <strong>{order.serviceName || "Service order"}{order.projectName ? ` · ${order.projectName}` : ""}</strong>
@@ -940,7 +1051,7 @@ function AdminDashboard() {
               {!ordersLoading && !ordersError && (filteredOrdersList.length ? (
                 <div className="admin-activity-list">
                   {filteredOrdersList.map((order, index) => (
-                    <div className="admin-activity-row" key={order.id || `${order.createdAt}-${index}`}>
+                    <div className="admin-activity-row admin-order-card" key={order.id || `${order.createdAt}-${index}`}>
                       <span><ShoppingBag size={15} /></span>
                       <div>
                         <strong>{order.serviceName || "Service order"}{order.projectName ? ` · ${order.projectName}` : ""}</strong>
@@ -1230,15 +1341,37 @@ function AdminDashboard() {
             >
               <section className="admin-panel">
                 <AdminPageHeading eyebrow="PLATFORM CONFIGURATION" title="Platform settings">
-                  Values in this form are a local preview only. Saving does not update the public website or persist after refresh.
+                  These values are stored on the server and shown on the public website. Only the verified owner can read or change them.
                 </AdminPageHeading>
-                <form className="admin-form admin-settings-form" onSubmit={saveSettings}>
-                  <label>Website name<input value={settings.name} onChange={(event) => setSettings((current) => ({ ...current, name: event.target.value }))} /></label>
-                  <label>Website description<textarea rows="3" value={settings.description} onChange={(event) => setSettings((current) => ({ ...current, description: event.target.value }))} placeholder="Not connected to the public website" /></label>
-                  <label>Contact email<input type="email" value={settings.contactEmail} onChange={(event) => setSettings((current) => ({ ...current, contactEmail: event.target.value }))} /></label>
-                  <label>Support email<input type="email" value={settings.supportEmail} onChange={(event) => setSettings((current) => ({ ...current, supportEmail: event.target.value }))} /></label>
-                  <div className="admin-form-actions"><button className="admin-primary-button" type="submit">Save preview settings</button></div>
-                </form>
+
+                {settingsLoading && (
+                  <div className="admin-action-notice" role="status" aria-live="polite">
+                    <Loader2 size={16} />
+                    Loading platform settings from the server…
+                  </div>
+                )}
+
+                {!settingsLoading && settingsLoadError && (
+                  <div className="admin-security-notice" role="alert">
+                    <AlertTriangle size={17} />
+                    <p><strong>Platform settings unavailable.</strong> {settingsLoadError}</p>
+                  </div>
+                )}
+
+                {!settingsLoading && !settingsLoadError && (
+                  <form className="admin-form admin-settings-form" onSubmit={saveSettings}>
+                    <label>Website name<input required maxLength={maximumWebsiteNameLength} value={settings.websiteName} onChange={(event) => setSettings((current) => ({ ...current, websiteName: event.target.value }))} /></label>
+                    <label>Website description<textarea rows="3" maxLength={maximumWebsiteDescriptionLength} value={settings.websiteDescription} onChange={(event) => setSettings((current) => ({ ...current, websiteDescription: event.target.value }))} placeholder="Shown on the public website" /></label>
+                    <label>Contact email<input type="email" maxLength={maximumEmailLength} value={settings.contactEmail} onChange={(event) => setSettings((current) => ({ ...current, contactEmail: event.target.value }))} /></label>
+                    <label>Support email<input type="email" maxLength={maximumEmailLength} value={settings.supportEmail} onChange={(event) => setSettings((current) => ({ ...current, supportEmail: event.target.value }))} /></label>
+                    <div className="admin-form-actions">
+                      <button className="admin-primary-button" type="submit" disabled={settingsSaving}>
+                        {settingsSaving ? "Saving…" : "Save settings"}
+                      </button>
+                    </div>
+                    {settingsFormError && <span className="seller-field-error" role="alert">{settingsFormError}</span>}
+                  </form>
+                )}
               </section>
             </RequireOwner>
           )}
@@ -1246,9 +1379,92 @@ function AdminDashboard() {
           {activeSection === "activity" && (
             <section className="admin-panel">
               <AdminPageHeading eyebrow="ADMIN ACTION HISTORY" title="Activity log">
-                Actions are held in browser memory and disappear when this page is refreshed.
+                Administrative actions recorded on the server as they happen, read here for the owner and approved admins. Only the action, the actor&apos;s role and the time are recorded; actor identities, customer information and setting values are never stored here.
               </AdminPageHeading>
-              {activity.length ? <div className="admin-activity-list">{activity.map((item) => <div className="admin-activity-row" key={item.id}><span><Activity size={15} /></span><div><strong>{item.description}</strong><small>{item.time} · Browser preview</small></div></div>)}</div> : <EmptyState title="No recorded actions">Settings changes made in this session will be listed here.</EmptyState>}
+
+              <div className="admin-filter-row" role="group" aria-label="Filter activity by action">
+                {["all", ...adminActivityActions].map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    className={activityActionFilter === action ? "active" : ""}
+                    onClick={() => { setActivityActionFilter(action); setActivityLimit(adminActivityPageSize); }}
+                  >
+                    {action === "all" ? "All actions" : formatActivityAction(action)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-filter-row" role="group" aria-label="Filter activity by actor role">
+                {["all", "owner", "admin"].map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className={activityActorRoleFilter === role ? "active" : ""}
+                    onClick={() => { setActivityActorRoleFilter(role); setActivityLimit(adminActivityPageSize); }}
+                  >
+                    {role === "all" ? "Owner & admins" : formatActivityActorRole(role)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="admin-filter-row" role="group" aria-label="Activity log actions">
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setActivityRefreshKey((current) => current + 1)}
+                  disabled={activityLoading}
+                >
+                  <RefreshCw size={14} aria-hidden="true" /> {activityLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+
+              {activityLoading && (
+                <div className="admin-action-notice" role="status" aria-live="polite">
+                  <Loader2 size={16} />
+                  Loading the activity log from the server…
+                </div>
+              )}
+
+              {!activityLoading && activityError && (
+                <div className="admin-security-notice" role="alert">
+                  <AlertTriangle size={17} />
+                  <p><strong>Activity log unavailable.</strong> {activityError}</p>
+                </div>
+              )}
+
+              {!activityLoading && !activityError && (activityEntries.length ? (
+                <>
+                  <div className="admin-activity-list">
+                    {activityEntries.map((entry) => (
+                      <div className="admin-activity-row" key={entry.id}>
+                        <span><Activity size={15} /></span>
+                        <div>
+                          <strong>{formatActivityAction(entry.action)}</strong>
+                          <small>{entry.summary}</small>
+                          <small>{`${formatActivityActorRole(entry.actorRole)} · ${formatActivityTime(entry.createdAt)}`}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {activityEntries.length >= activityLimit && (
+                    <div className="admin-filter-row" role="group" aria-label="Load older activity">
+                      <button
+                        type="button"
+                        className="admin-secondary-button"
+                        onClick={() => setActivityLimit((current) => current + adminActivityPageSize)}
+                        disabled={activityLoading}
+                      >
+                        Load older activity
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyState title="No recorded actions">
+                  Administrative actions appear here as soon as they happen. Actions taken before the activity log was enabled were never recorded and cannot be recovered.
+                </EmptyState>
+              ))}
             </section>
           )}
         </section>

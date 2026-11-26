@@ -91,8 +91,6 @@ export function SellerIntro() {
     <main className="market-section seller-page seller-intro-page">
       <Link className="seller-back-link" to="/"><ArrowLeft size={14} /> Back to marketplace</Link>
       <section className="seller-intro-hero">
-        <div className="seller-intro-glow seller-intro-glow-blue" />
-        <div className="seller-intro-glow seller-intro-glow-purple" />
         <div className="seller-intro-copy">
           <span className="market-eyebrow"><span className="market-eyebrow-dot" /> FOR WEBSITE DEVELOPERS</span>
           <h1>Become a Seller on <span>NexTech</span></h1>

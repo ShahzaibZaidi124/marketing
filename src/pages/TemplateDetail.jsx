@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, Check, Clock3, Monitor, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, Clock3, Monitor, ShieldCheck, Star } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { formatPrice, templates } from "../data/templates.js";
 
@@ -34,7 +34,7 @@ export function TemplateDetail() {
       </section>
       <section className="detail-includes section">
         <div className="detail-includes-copy"><span className="eyebrow">A little more of the good stuff</span><h2>A good foundation.<br /><span className="muted-heading">A whole lot of possibility.</span></h2><p>Everything you need to bring your idea to life, with the considered details already taken care of.</p></div>
-        <div className="includes-card"><div className="includes-card-top"><Sparkles size={16} /><span>WHAT’S INCLUDED</span></div><div className="includes-pages">{template.features.map((feature) => <div key={feature}><span><Check size={13} /></span>{feature}</div>)}</div><div className="includes-footer"><span>{template.pages} thoughtfully designed pages</span><span>MADE WITH YOU IN MIND.</span></div></div>
+        <div className="includes-card"><div className="includes-card-top"><span>WHAT’S INCLUDED</span></div><div className="includes-pages">{template.features.map((feature) => <div key={feature}><span><Check size={13} /></span>{feature}</div>)}</div><div className="includes-footer"><span>{template.pages} thoughtfully designed pages</span><span>MADE WITH YOU IN MIND.</span></div></div>
       </section>
       <section className="detail-bottom-cta"><span className="eyebrow">A good idea is worth a good start</span><h2>Ready to make it yours?</h2><Link className="button button-primary" to={`/order/${template.id}`}>Ask about {template.name} <ArrowUpRight size={15} /></Link></section>
     </main>

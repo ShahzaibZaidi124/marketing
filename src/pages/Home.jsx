@@ -69,8 +69,6 @@ export default function Home() {
   return (
     <main className="market-home">
       <section className="market-hero">
-        <div className="market-hero-glow market-hero-glow-blue" />
-        <div className="market-hero-glow market-hero-glow-purple" />
         <div className="market-hero-inner">
           <div className="market-hero-copy">
             <span className="market-eyebrow"><span className="market-eyebrow-dot" /> THE WEBSITE DEVELOPMENT MARKETPLACE</span>
@@ -95,8 +93,6 @@ export default function Home() {
             <a className="market-scroll-link" href="#categories">Explore categories <ArrowDown size={15} /></a>
           </div>
           <div className="market-hero-art" aria-label="A preview of website developer services">
-            <div className="hero-orbit hero-orbit-one" />
-            <div className="hero-orbit hero-orbit-two" />
             <div className="hero-preview hero-preview-back">
               <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=720&q=85" alt="" />
               <span>BUSINESS WEBSITE</span>
@@ -105,7 +101,6 @@ export default function Home() {
               <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=85" alt="Website analytics displayed on a laptop" />
               <div className="hero-preview-caption"><span className="hero-preview-mark"><Code2 size={16} /></span><span><strong>Made for your next big idea</strong><small>Find a developer who gets it.</small></span><ArrowUpRight size={16} /></div>
             </div>
-            <div className="hero-floating-note"><span className="hero-note-icon"><WandSparkles size={16} /></span><span><strong>Your idea, built right</strong><small>Meet your next collaborator</small></span></div>
             <span className="hero-art-caption">DESIGN · DEVELOPMENT · YOUR VISION</span>
           </div>
         </div>
@@ -155,7 +150,6 @@ export default function Home() {
       </section>
 
       <section className="seller-banner" id="seller">
-        <div className="seller-banner-glow" />
         <div className="seller-banner-copy">
           <span className="market-eyebrow">For developers with a point of view</span>
           <h2>Turn Your Skills Into Opportunities</h2>

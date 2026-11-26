@@ -4,7 +4,6 @@ import {
   BadgeCheck,
   Briefcase,
   Camera,
-  CalendarDays,
   CheckCircle2,
   Globe2,
   LogOut,
@@ -13,7 +12,6 @@ import {
   PencilLine,
   Save,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Upload,
   UserRound,
@@ -54,13 +52,6 @@ function getAboutFields(metadata = {}) {
 
 function splitInterestList(value) {
   return value.split(/[,\n]/).map((item) => item.trim()).filter(Boolean);
-}
-
-function getMemberSince(createdAt) {
-  if (!createdAt) return "Not available";
-  const date = new Date(createdAt);
-  if (Number.isNaN(date.getTime())) return "Not available";
-  return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(date);
 }
 
 export default function ClientProfile() {
@@ -460,13 +451,12 @@ export default function ClientProfile() {
     : selectedAvatarFile
       ? avatarPreview
       : profilePictureUrl;
-  const memberSince = getMemberSince(user.created_at);
 
   return (
     <main className="client-profile-page">
       <div className="client-profile-container">
         <div className="client-profile-intro">
-          <span className="client-profile-eyebrow"><Sparkles size={14} /> YOUR NEXTECH ACCOUNT</span>
+          <span className="client-profile-eyebrow">YOUR NEXTECH ACCOUNT</span>
           <h1>Client profile</h1>
           <p>Your profile and account details, all in one place.</p>
         </div>
@@ -479,21 +469,15 @@ export default function ClientProfile() {
         {(avatarError || profilePictureError) && !editMode && <p className="client-profile-action-error" role="alert">{avatarError || profilePictureError}</p>}
 
         <section className="client-profile-hero" aria-label="Profile header">
-          <div className="client-profile-hero-glow" aria-hidden="true" />
           <div className="client-profile-avatar">
             {avatar
               ? <img src={avatar} alt={fullName ? `${fullName} profile` : "Profile"} />
               : <UserRound size={35} aria-hidden="true" />}
           </div>
           <div className="client-profile-hero-copy">
-            <div className="client-profile-badges">
-              <span className="client-profile-client-badge"><BadgeCheck size={15} /> Client</span>
-              <span className="client-profile-member-badge"><CalendarDays size={14} /> Member since {memberSince}</span>
-            </div>
             <h2>{fullName || "Name not provided"}</h2>
             <p className="client-profile-username">{username ? `@${username}` : "Username not provided"}</p>
           </div>
-          <span className="client-profile-hero-decoration" aria-hidden="true"><Sparkles size={22} /></span>
         </section>
 
         <form className="client-profile-page-form" onSubmit={saveProfile} noValidate>
@@ -674,13 +658,13 @@ export default function ClientProfile() {
                     <p>{biography || "No biography added yet."}</p>
                   </div>
                   <div className="client-profile-about-block client-profile-interests">
-                    <h3><Sparkles size={14} /> Service interests</h3>
+                    <h3>Service interests</h3>
                     {serviceInterests.length
                       ? <div className="client-profile-interest-tags">{serviceInterests.map((interest, index) => <span key={`${interest}-${index}`}>{interest}</span>)}</div>
                       : <p>No service interests added yet.</p>}
                   </div>
                   <div className="client-profile-about-block client-profile-interests">
-                    <h3><Sparkles size={14} /> Skills or project interests</h3>
+                    <h3>Skills or project interests</h3>
                     {projectInterests.length
                       ? <div className="client-profile-interest-tags">{projectInterests.map((interest, index) => <span key={`${interest}-${index}`}>{interest}</span>)}</div>
                       : <p>No skills or project interests added yet.</p>}

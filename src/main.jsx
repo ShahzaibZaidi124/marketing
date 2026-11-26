@@ -4,15 +4,18 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { MarketplaceProvider } from "./context/MarketplaceContext.jsx";
+import { SiteSettingsProvider } from "./context/SiteSettingsContext.jsx";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <MarketplaceProvider>
-          <App />
-        </MarketplaceProvider>
+        <SiteSettingsProvider>
+          <MarketplaceProvider>
+            <App />
+          </MarketplaceProvider>
+        </SiteSettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

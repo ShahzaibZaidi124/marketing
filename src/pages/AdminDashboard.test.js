@@ -10,7 +10,11 @@
 //   * /admin/messages stays owner-only;
 //   * the guard reuses the existing owner check (isOwnerAccount → public.is_owner)
 //     and never falls back to the admin check (has_admin_access);
-//   * Platform Settings stays a local preview: no Supabase call, no RPC.
+//   * Platform Settings is a live, owner-only record: it loads and saves through
+//     the management RPCs and exposes loading / saving / success / error states.
+//   * the Activity log is a live, server-persisted, read-only feed for the owner
+//     and approved admins: it reads through the gated RPC, exposes loading / error
+//     / empty / filter / pagination states, and shows no actor id or setting value.
 //
 // Run: node --test src/pages/AdminDashboard.test.js
 import assert from "node:assert/strict";
@@ -72,10 +76,92 @@ test("the settings gate reuses the existing owner check, not the admin check", (
   assert.match(guardBody, /<p>\{errorMessage\} \{errorNote\}<\/p>/);
 });
 
-test("Platform Settings stays a local preview with no server calls", () => {
-  const saveSettings = sliceBetween(dashboardSource, "const saveSettings = (event) => {", "const unavailableSections");
-  assert.doesNotMatch(saveSettings, /getSupabaseClient|\.rpc\(|from\(/);
-  assert.match(saveSettings, /browser preview only/);
-  // The heading still tells the owner the values are not persisted.
-  assert.match(dashboardSource, /a local preview only\. Saving does not update the public website or persist after refresh\./);
+test("Platform Settings loads and saves through the owner-only management RPCs", () => {
+  // The lib exposes the two owner-gated RPCs and their validators.
+  assert.match(dashboardSource, /import \{[\s\S]*?getPlatformSettings,[\s\S]*?\} from "\.\.\/lib\/platformSettings\.js"/);
+  assert.match(dashboardSource, /getPlatformSettings\(\)/);
+  assert.match(dashboardSource, /updatePlatformSettings\(values\)/);
+  assert.match(dashboardSource, /validatePlatformSettingsDraft\(settings\)/);
+
+  // The save no longer stops in browser memory: it calls the server and re-reads
+  // the row the server returns.
+  const saveSettings = sliceBetween(dashboardSource, "const saveSettings = async (event) => {", "const unavailableSections");
+  assert.match(saveSettings, /updatePlatformSettings\(values\)/);
+  assert.match(saveSettings, /getSavePlatformSettingsErrorMessage\(error\)/);
+  assert.match(saveSettings, /setNotice\("Platform settings saved\./);
+
+  // The old browser-preview copy is gone.
+  assert.doesNotMatch(dashboardSource, /local preview only/);
+  assert.doesNotMatch(dashboardSource, /Save preview settings/);
+});
+
+test("Platform Settings exposes loading, saving, success and error states", () => {
+  assert.match(dashboardSource, /const \[settingsLoading, setSettingsLoading\] = useState\(false\)/);
+  assert.match(dashboardSource, /const \[settingsSaving, setSettingsSaving\] = useState\(false\)/);
+  assert.match(dashboardSource, /const \[settingsLoadError, setSettingsLoadError\] = useState\(""\)/);
+  assert.match(dashboardSource, /const \[settingsFormError, setSettingsFormError\] = useState\(""\)/);
+  // States are rendered: loading notice, error notice, saving button label.
+  assert.match(dashboardSource, /Loading platform settings from the server…/);
+  assert.match(dashboardSource, /Platform settings unavailable\./);
+  assert.match(dashboardSource, /\{settingsSaving \? "Saving…" : "Save settings"\}/);
+  // The submit button is disabled while a save is in flight.
+  assert.match(dashboardSource, /disabled=\{settingsSaving\}/);
+});
+
+test("Platform Settings is a live section, not a preview", () => {
+  // It is excluded from the browser-preview set (no "Demo mode" chip / preview note).
+  assert.match(dashboardSource, /&& activeSection !== "settings"\s*&& activeSection !== "activity";/);
+  // It is loaded only for a confirmed owner (fails closed for admins/customers).
+  assert.match(dashboardSource, /if \(!user \|\| !isOwner\) \{/);
+});
+
+test("the Activity log loads live from the read-only RPC, not browser memory", () => {
+  // The lib exposes the reader and its error mapper.
+  assert.match(dashboardSource, /import \{[\s\S]*?getAdminActivityLog,[\s\S]*?\} from "\.\.\/lib\/adminActivityLog\.js"/);
+  assert.match(dashboardSource, /getAdminActivityLog\(\{/);
+  assert.match(dashboardSource, /getAdminActivityLogErrorMessage\(error\)/);
+
+  // The old browser-memory writer and its copy are gone.
+  assert.doesNotMatch(dashboardSource, /const logAction = /);
+  assert.doesNotMatch(dashboardSource, /logAction\(/);
+  assert.doesNotMatch(dashboardSource, /Actions are held in browser memory and disappear when this page is refreshed\./);
+  assert.doesNotMatch(dashboardSource, /Browser preview/);
+  assert.doesNotMatch(dashboardSource, /Settings changes made in this session will be listed here\./);
+});
+
+test("the Activity log exposes loading, error, empty, filter, pagination and refresh states", () => {
+  assert.match(dashboardSource, /const \[activityEntries, setActivityEntries\] = useState\(\[\]\)/);
+  assert.match(dashboardSource, /const \[activityLoading, setActivityLoading\] = useState\(false\)/);
+  assert.match(dashboardSource, /const \[activityError, setActivityError\] = useState\(""\)/);
+  assert.match(dashboardSource, /const \[activityActionFilter, setActivityActionFilter\] = useState\("all"\)/);
+  assert.match(dashboardSource, /const \[activityActorRoleFilter, setActivityActorRoleFilter\] = useState\("all"\)/);
+  assert.match(dashboardSource, /const \[activityLimit, setActivityLimit\] = useState\(adminActivityPageSize\)/);
+
+  // Rendered affordances.
+  assert.match(dashboardSource, /Loading the activity log from the server…/);
+  assert.match(dashboardSource, /Activity log unavailable\./);
+  assert.match(dashboardSource, /Load older activity/);
+  assert.match(dashboardSource, /aria-label="Filter activity by action"/);
+  assert.match(dashboardSource, /aria-label="Filter activity by actor role"/);
+  // The neutral empty state never claims the log is complete.
+  assert.match(dashboardSource, /were never recorded and cannot be recovered\./);
+});
+
+test("the Activity log shows only the action, role and time — never an actor id or setting value", () => {
+  // The row renders the derived role word and the summary, never an id.
+  assert.match(dashboardSource, /formatActivityActorRole\(entry\.actorRole\)/);
+  assert.match(dashboardSource, /formatActivityAction\(entry\.action\)/);
+  assert.match(dashboardSource, /formatActivityTime\(entry\.createdAt\)/);
+  assert.doesNotMatch(dashboardSource, /entry\.actorId/);
+  assert.doesNotMatch(dashboardSource, /entry\.actor_id/);
+});
+
+test("the Activity log is a live section available to the owner and approved admins", () => {
+  // It is excluded from the browser-preview set.
+  assert.match(dashboardSource, /&& activeSection !== "settings"\s*&& activeSection !== "activity";/);
+  // It is NOT wrapped in RequireOwner: approved admins may read it, and the RPC is
+  // the real gate. RequireOwner still gates exactly Messages + Platform Settings.
+  const uses = dashboardSource.match(/<RequireOwner\b/g) ?? [];
+  assert.equal(uses.length, 2, "Activity log must not add a third RequireOwner");
+  assert.doesNotMatch(dashboardSource, /\{activeSection === "activity" && \(\s*<RequireOwner/);
 });

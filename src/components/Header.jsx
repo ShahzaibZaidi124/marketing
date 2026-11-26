@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useSiteSettings } from "../context/SiteSettingsContext.jsx";
+import { brandNameWithoutTrailingPeriod } from "../lib/platformSettings.js";
 import { signInWithGoogle } from "../lib/auth.js";
 
 const links = [
@@ -21,6 +23,10 @@ export default function Header() {
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState("");
   const { user, loading, signOut, profilePictureUrl } = useAuth();
+  const { settings } = useSiteSettings();
+  // The stored website name drives the wordmark; the single styled trailing period
+  // is rendered separately so the existing mark and layout are unchanged.
+  const brandName = brandNameWithoutTrailingPeriod(settings.websiteName);
 
   const closeMenu = () => setMenuOpen(false);
   const handleSignIn = async () => {
@@ -61,9 +67,9 @@ export default function Header() {
   return (
     <header className="site-header">
       <div className="nav-shell">
-        <Link className="brand" to="/" aria-label="NexTech home" onClick={closeMenu}>
+        <Link className="brand" to="/" aria-label={`${brandName} home`} onClick={closeMenu}>
           <span className="brand-mark"><span /></span>
-          <span>NexTech<span className="brand-period">.</span></span>
+          <span>{brandName}<span className="brand-period">.</span></span>
         </Link>
         <button
           className="menu-toggle"
